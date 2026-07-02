@@ -34,6 +34,9 @@ class QcdRedisCache extends \Cache
 
     private const KEYS_INDEX = '__qcdredis_keys__';
 
+    /** @var int Hard ceiling on the persisted keys index to bound its growth. */
+    private const MAX_INDEX_KEYS = 100000;
+
     private ?RedisConfig $qcdConfig = null;
 
     private ?RedisConnection $qcdConnection = null;
@@ -221,10 +224,47 @@ class QcdRedisCache extends \Cache
         }
 
         $this->keysDirty = false;
+        $this->keys = $this->pruneKeysIndex($this->keys);
         $payload = $this->encode($this->keys);
         $indexKey = $this->prefix . self::KEYS_INDEX;
 
         return (bool) $this->run(static fn (\Redis $r) => $r->set($indexKey, $payload), false);
+    }
+
+    /**
+     * Keep the persisted index bounded and free of provably stale entries.
+     *
+     * - An entry carrying an expiry timestamp already in the past maps to a key
+     *   Redis has since expired; listing it only yields wasted GET misses on
+     *   later requests, so it is dropped.
+     * - A hard ceiling guards against pathological unbounded growth over the
+     *   shop lifetime. Dropping a still-valid entry only costs a benign
+     *   re-cache on the next access, never a wrong read.
+     *
+     * Runs only at the shutdown flush, so it never affects in-request behaviour.
+     *
+     * @param array<string, int> $keys
+     *
+     * @return array<string, int>
+     */
+    private function pruneKeysIndex(array $keys): array
+    {
+        $now = time();
+
+        foreach ($keys as $key => $expiry) {
+            if ((int) $expiry > 0 && (int) $expiry <= $now) {
+                unset($keys[$key]);
+            }
+        }
+
+        $overflow = count($keys) - self::MAX_INDEX_KEYS;
+
+        if ($overflow > 0) {
+            // Arrays preserve insertion order, so this drops the oldest entries.
+            $keys = array_slice($keys, $overflow, null, true);
+        }
+
+        return $keys;
     }
 
     /**
