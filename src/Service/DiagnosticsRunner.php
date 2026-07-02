@@ -91,8 +91,8 @@ final class DiagnosticsRunner
     private function checkExtension(): array
     {
         return RedisConnection::isExtensionAvailable()
-            ? $this->result('PHP redis extension', self::LEVEL_OK, 'Loaded (v' . phpversion('redis') . ').')
-            : $this->result('PHP redis extension', self::LEVEL_ERROR, 'The phpredis extension is missing.');
+            ? $this->result('Extension PHP redis', self::LEVEL_OK, 'Chargée (v' . phpversion('redis') . ').')
+            : $this->result('Extension PHP redis', self::LEVEL_ERROR, 'Extension phpredis absente.');
     }
 
     private function checkConnection(): array
@@ -100,8 +100,8 @@ final class DiagnosticsRunner
         $connection = $this->connection();
 
         return $connection->isAvailable()
-            ? $this->result('Connection', self::LEVEL_OK, 'Redis responds to PING.')
-            : $this->result('Connection', self::LEVEL_ERROR, $connection->getLastError() ?: 'Unreachable.');
+            ? $this->result('Connexion', self::LEVEL_OK, 'Redis répond au PING.')
+            : $this->result('Connexion', self::LEVEL_ERROR, $connection->getLastError() ?: 'Injoignable.');
     }
 
     private function checkRedisVersion(): array
@@ -109,26 +109,26 @@ final class DiagnosticsRunner
         $version = (string) ($this->connection()->info()['redis_version'] ?? '');
 
         if ($version === '') {
-            return $this->result('Redis version', self::LEVEL_ERROR, 'Unknown.');
+            return $this->result('Version de Redis', self::LEVEL_ERROR, 'Inconnue.');
         }
 
         $level = version_compare($version, '6.0.0', '>=') ? self::LEVEL_OK : self::LEVEL_WARNING;
 
-        return $this->result('Redis version', $level, $version . ' (6.x/7.x recommended).');
+        return $this->result('Version de Redis', $level, $version . ' (6.x/7.x recommandé).');
     }
 
     private function checkPhpVersion(): array
     {
-        $level = version_compare(PHP_VERSION, '8.2.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
+        $level = version_compare(PHP_VERSION, '8.1.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
 
-        return $this->result('PHP version', $level, PHP_VERSION . ' (>= 8.2 required).');
+        return $this->result('Version de PHP', $level, PHP_VERSION . ' (>= 8.1 requis).');
     }
 
     private function checkPrestaShopVersion(): array
     {
         $level = version_compare(_PS_VERSION_, '8.0.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
 
-        return $this->result('PrestaShop version', $level, _PS_VERSION_ . ' (8.x/9.x supported).');
+        return $this->result('Version de PrestaShop', $level, _PS_VERSION_ . ' (8.x/9.x pris en charge).');
     }
 
     private function checkMemory(): array
@@ -138,13 +138,13 @@ final class DiagnosticsRunner
         $used = (int) ($info['used_memory'] ?? 0);
 
         if ($max === 0) {
-            return $this->result('Memory', self::LEVEL_WARNING, 'No maxmemory limit configured on Redis.');
+            return $this->result('Mémoire', self::LEVEL_WARNING, 'Aucune limite maxmemory configurée sur Redis.');
         }
 
         $usage = $used / $max;
         $level = $usage < 0.8 ? self::LEVEL_OK : ($usage < 0.95 ? self::LEVEL_WARNING : self::LEVEL_ERROR);
 
-        return $this->result('Memory', $level, round($usage * 100, 1) . '% used.');
+        return $this->result('Mémoire', $level, round($usage * 100, 1) . '% utilisée.');
     }
 
     private function checkPermissions(): array
@@ -154,8 +154,8 @@ final class DiagnosticsRunner
         $writable = is_writable($classDir) && (is_writable($parameters) || is_writable(dirname($parameters)));
 
         return $writable
-            ? $this->result('Permissions', self::LEVEL_OK, 'Cache class dir and parameters file are writable.')
-            : $this->result('Permissions', self::LEVEL_WARNING, 'classes/cache or parameters.php is not writable.');
+            ? $this->result('Permissions', self::LEVEL_OK, 'Le dossier classes/cache et parameters.php sont accessibles en écriture.')
+            : $this->result('Permissions', self::LEVEL_WARNING, 'classes/cache ou parameters.php n\'est pas accessible en écriture.');
     }
 
     private function checkCacheActive(): array
@@ -163,8 +163,8 @@ final class DiagnosticsRunner
         $active = defined('_PS_CACHING_SYSTEM_') && _PS_CACHING_SYSTEM_ === 'CacheRedis';
 
         return $active
-            ? $this->result('Cache engine', self::LEVEL_OK, 'CacheRedis is the active engine.')
-            : $this->result('Cache engine', self::LEVEL_WARNING, 'Redis is not the active cache engine.');
+            ? $this->result('Moteur de cache', self::LEVEL_OK, 'CacheRedis est le moteur actif.')
+            : $this->result('Moteur de cache', self::LEVEL_WARNING, "Redis n'est pas le moteur de cache actif.");
     }
 
     private function timePass(callable $pass): float

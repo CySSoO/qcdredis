@@ -6,38 +6,208 @@
  * @license   Proprietary
  */
 
-.qcd-redis { --qcd-ok: #2fb344; --qcd-warn: #f59f00; --qcd-err: #e03131; font-size: 14px; }
-.qcd-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.qcd-title { margin: 0; font-weight: 600; }
-.qcd-title small { color: #868e96; font-size: 60%; }
-.qcd-badge { padding: 4px 12px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; }
-.qcd-badge-ok { background: var(--qcd-ok); }
-.qcd-badge-error { background: var(--qcd-err); }
-.qcd-nav { margin-bottom: 20px; }
+.qcd-redis {
+    --qcd-ok: #2f9e44;
+    --qcd-ok-soft: #ebfbee;
+    --qcd-warn: #f08c00;
+    --qcd-warn-soft: #fff9db;
+    --qcd-err: #e03131;
+    --qcd-err-soft: #fff5f5;
+    --qcd-blue: #1971c2;
+    --qcd-blue-soft: #e7f5ff;
+    --qcd-ink: #212529;
+    --qcd-muted: #6c757d;
+    --qcd-line: #e9ecef;
+    --qcd-bg: #f8f9fa;
+    --qcd-radius: 12px;
+    --qcd-shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+    font-size: 14px;
+    color: var(--qcd-ink);
+    max-width: 1080px;
+}
+
+.qcd-redis *,
+.qcd-redis *::before,
+.qcd-redis *::after { box-sizing: border-box; }
+
+/* ---------------- Hero / status ---------------- */
+.qcd-hero {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #1c2330, #2b3648);
+    color: #fff;
+    border-radius: var(--qcd-radius);
+    margin-bottom: 22px;
+}
+.qcd-hero-logo {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, .12);
+    border-radius: 12px; flex: 0 0 auto;
+}
+.qcd-hero-logo svg { width: 26px; height: 26px; }
+.qcd-hero-text { flex: 1 1 auto; min-width: 0; }
+.qcd-hero-title { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+.qcd-hero-title small { font-weight: 400; opacity: .7; font-size: 13px; }
+.qcd-hero-sub { margin: 4px 0 0; font-size: 13px; opacity: .8; }
+.qcd-status {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    font-weight: 600; font-size: 13px; white-space: nowrap; flex: 0 0 auto;
+}
+.qcd-status .dot { width: 9px; height: 9px; border-radius: 50%; }
+.qcd-status-ok { background: rgba(47, 158, 68, .18); color: #b2f2bb; }
+.qcd-status-ok .dot { background: #40c057; box-shadow: 0 0 0 4px rgba(64, 192, 87, .25); }
+.qcd-status-off { background: rgba(255, 255, 255, .12); color: #ced4da; }
+.qcd-status-off .dot { background: #adb5bd; }
+
+/* ---------------- Tabs ---------------- */
+.qcd-nav {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    border: none; margin-bottom: 22px;
+    background: var(--qcd-bg); padding: 6px; border-radius: var(--qcd-radius);
+}
+.qcd-nav .nav-item { margin: 0; }
+.qcd-nav .nav-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; border: none; border-radius: 9px;
+    color: var(--qcd-muted); font-weight: 600; font-size: 13px;
+    background: transparent; cursor: pointer; transition: all .15s ease;
+}
+.qcd-nav .nav-link svg { width: 17px; height: 17px; opacity: .8; }
+.qcd-nav .nav-link:hover { background: #fff; color: var(--qcd-ink); }
+.qcd-nav .nav-link.active { background: #fff; color: var(--qcd-blue); box-shadow: var(--qcd-shadow); }
+.qcd-nav .nav-link.active svg { opacity: 1; }
+
+/* ---------------- Panels ---------------- */
 .qcd-panel { display: none; }
 .qcd-panel.active { display: block; animation: qcd-fade .2s ease-in; }
-@keyframes qcd-fade { from { opacity: 0; } to { opacity: 1; } }
-.qcd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.qcd-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-.qcd-metric { display: block; font-size: 22px; font-weight: 700; color: #1c7ed6; word-break: break-word; }
-.qcd-label { display: block; color: #868e96; font-size: 12px; margin-top: 6px; }
-.qcd-form { max-width: 640px; }
-.qcd-field { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.qcd-field > label { width: 220px; font-weight: 600; margin: 0; }
-.qcd-field input[type="text"], .qcd-field input[type="number"], .qcd-field input[type="password"], .qcd-field select { flex: 1; padding: 8px; border: 1px solid #ced4da; border-radius: 8px; }
-.qcd-actions { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
-.qcd-result { min-height: 20px; font-weight: 600; }
+@keyframes qcd-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.qcd-panel-head { margin-bottom: 18px; }
+.qcd-panel-head h3 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+.qcd-panel-head p { margin: 0; color: var(--qcd-muted); font-size: 13px; }
+
+/* ---------------- Callouts ---------------- */
+.qcd-callout {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 13px 16px; border-radius: 10px; margin-bottom: 18px;
+    font-size: 13px; line-height: 1.5; border: 1px solid transparent;
+}
+.qcd-callout svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; }
+.qcd-callout strong { font-weight: 700; }
+.qcd-callout-info { background: var(--qcd-blue-soft); border-color: #d0ebff; color: #1864ab; }
+.qcd-callout-warn { background: var(--qcd-warn-soft); border-color: #ffec99; color: #e67700; }
+.qcd-callout-ok { background: var(--qcd-ok-soft); border-color: #d3f9d8; color: #2b8a3e; }
+
+/* ---------------- Cards / metrics ---------------- */
+.qcd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.qcd-card {
+    background: #fff; border: 1px solid var(--qcd-line); border-radius: var(--qcd-radius);
+    padding: 18px 16px; text-align: center; box-shadow: var(--qcd-shadow);
+}
+.qcd-metric { display: block; font-size: 24px; font-weight: 700; color: var(--qcd-blue); word-break: break-word; line-height: 1.2; }
+.qcd-label { display: block; color: var(--qcd-muted); font-size: 12px; margin-top: 6px; }
+
+/* ---------------- Sections & forms ---------------- */
+.qcd-section {
+    background: #fff; border: 1px solid var(--qcd-line); border-radius: var(--qcd-radius);
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--qcd-shadow);
+}
+.qcd-section-title {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 14px; font-size: 14px; font-weight: 700; color: var(--qcd-ink);
+    padding-bottom: 12px; border-bottom: 1px solid var(--qcd-line);
+}
+.qcd-section-title svg { width: 18px; height: 18px; color: var(--qcd-blue); }
+.qcd-hint { color: var(--qcd-muted); font-size: 12.5px; margin: -6px 0 14px; line-height: 1.5; }
+
+.qcd-form { max-width: 720px; }
+.qcd-redis .form-group,
+.qcd-redis .form-row { margin-bottom: 14px; }
+.qcd-redis .qcd-section label,
+.qcd-redis .form-control-label { font-weight: 600; }
+.qcd-redis .qcd-section input[type="text"],
+.qcd-redis .qcd-section input[type="number"],
+.qcd-redis .qcd-section input[type="password"],
+.qcd-redis .qcd-section select,
+.qcd-redis .form-control {
+    max-width: 420px; padding: 9px 12px;
+    border: 1px solid #ced4da; border-radius: 9px; font-size: 14px;
+}
+.qcd-redis .qcd-section input:focus,
+.qcd-redis .qcd-section select:focus {
+    outline: none; border-color: var(--qcd-blue); box-shadow: 0 0 0 3px var(--qcd-blue-soft);
+}
+
+.qcd-field { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.qcd-field > label { min-width: 200px; font-weight: 600; margin: 0; }
+.qcd-field input[type="text"] { flex: 1; min-width: 200px; padding: 9px 12px; border: 1px solid #ced4da; border-radius: 9px; }
+
+/* ---------------- Buttons ---------------- */
+.qcd-redis .btn,
+.qcd-actions .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 16px; border-radius: 9px; font-weight: 600; font-size: 13px;
+    border: 1px solid transparent; cursor: pointer; transition: all .15s ease; text-decoration: none;
+}
+.qcd-redis .btn svg { width: 16px; height: 16px; }
+.qcd-redis .btn-primary { background: var(--qcd-blue); border-color: var(--qcd-blue); color: #fff; }
+.qcd-redis .btn-primary:hover { background: #1864ab; }
+.qcd-redis .btn-outline-secondary { background: #fff; border-color: #ced4da; color: var(--qcd-ink); }
+.qcd-redis .btn-outline-secondary:hover { background: var(--qcd-bg); border-color: #adb5bd; }
+.qcd-redis .btn-danger { background: var(--qcd-err); border-color: var(--qcd-err); color: #fff; }
+.qcd-redis .btn-danger:hover { background: #c92a2a; }
+.qcd-redis .btn:disabled { opacity: .55; cursor: not-allowed; }
+.qcd-actions { display: flex; gap: 10px; margin: 16px 0 6px; flex-wrap: wrap; align-items: center; }
+
+/* ---------------- Result messages ---------------- */
+.qcd-result { min-height: 20px; font-weight: 600; margin: 10px 0 0; font-size: 13px; }
 .qcd-result.ok { color: var(--qcd-ok); }
 .qcd-result.err { color: var(--qcd-err); }
-.qcd-progress { background: #e9ecef; border-radius: 8px; overflow: hidden; height: 24px; margin: 12px 0; }
-.qcd-progress-bar { background: var(--qcd-ok); color: #fff; text-align: center; line-height: 24px; width: 0; transition: width .3s ease; font-size: 12px; }
-.qcd-checks { list-style: none; padding: 0; }
-.qcd-check { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; background: #f8f9fa; }
-.qcd-check .dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+
+/* ---------------- Progress ---------------- */
+.qcd-progress { background: var(--qcd-line); border-radius: 999px; overflow: hidden; height: 22px; margin: 14px 0 0; }
+.qcd-progress-bar {
+    background: linear-gradient(90deg, #40c057, #2f9e44); color: #fff;
+    text-align: center; line-height: 22px; width: 0; transition: width .35s ease; font-size: 12px; font-weight: 600;
+}
+
+/* ---------------- Warmup / purge choices ---------------- */
+.qcd-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-bottom: 6px; }
+.qcd-choice {
+    display: flex; align-items: center; gap: 10px; margin: 0;
+    padding: 12px 14px; border: 1px solid var(--qcd-line); border-radius: 10px;
+    background: #fff; cursor: pointer; font-weight: 600; transition: all .15s ease;
+}
+.qcd-choice:hover { border-color: var(--qcd-blue); background: var(--qcd-blue-soft); }
+.qcd-choice input { margin: 0; }
+.qcd-choice small { display: block; font-weight: 400; color: var(--qcd-muted); }
+
+/* ---------------- Checks (diagnostic) ---------------- */
+.qcd-checks { list-style: none; padding: 0; margin: 0; }
+.qcd-check { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; background: #fff; border: 1px solid var(--qcd-line); }
+.qcd-check .dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; }
 .qcd-check.ok .dot { background: var(--qcd-ok); }
 .qcd-check.warning .dot { background: var(--qcd-warn); }
 .qcd-check.error .dot { background: var(--qcd-err); }
-.qcd-check .label { font-weight: 600; width: 200px; }
-.qcd-table { width: 100%; background: #fff; }
-.qcd-alert { padding: 12px 16px; border-radius: 8px; }
-.qcd-alert-error { background: #fff5f5; color: var(--qcd-err); border: 1px solid #ffc9c9; }
+.qcd-check .label { font-weight: 700; min-width: 190px; }
+.qcd-check-empty { color: var(--qcd-muted); font-size: 13px; padding: 14px; text-align: center; }
+
+/* ---------------- Table ---------------- */
+.qcd-table { width: 100%; background: #fff; border-radius: var(--qcd-radius); overflow: hidden; border: 1px solid var(--qcd-line); }
+.qcd-table th { background: var(--qcd-bg); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--qcd-muted); }
+.qcd-table th, .qcd-table td { padding: 10px 14px; }
+.qcd-table td { word-break: break-all; }
+
+.qcd-subtitle { font-size: 14px; font-weight: 700; margin: 22px 0 12px; }
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 720px) {
+    .qcd-hero { flex-wrap: wrap; }
+    .qcd-field > label { min-width: 100%; }
+    .qcd-nav .nav-link span { display: none; }
+    .qcd-nav .nav-link { padding: 10px 12px; }
+}

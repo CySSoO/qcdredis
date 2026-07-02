@@ -51,7 +51,8 @@
         return fetch(url(name), opts).then(function (r) { return r.json(); });
     }
 
-    /* ---------------- Tabs ---------------- */
+    /* ---------------- Tabs (with lazy loading) ---------------- */
+    var loaded = {};
     app.querySelectorAll('[data-qcd-tab]').forEach(function (tab) {
         tab.addEventListener('click', function (e) {
             e.preventDefault();
@@ -61,6 +62,12 @@
             app.querySelectorAll('[data-qcd-panel]').forEach(function (p) {
                 p.classList.toggle('active', p.getAttribute('data-qcd-panel') === name);
             });
+
+            // Load the panel's data automatically the first time it is opened.
+            if (!loaded[name]) {
+                if (name === 'statistics') { refreshStatistics(); loaded[name] = true; }
+                else if (name === 'diagnostic') { runDiagnostics(); loaded[name] = true; }
+            }
         });
     });
 
@@ -70,7 +77,7 @@
         testBtn.addEventListener('click', function () {
             var form = testBtn.closest('form');
             var result = document.getElementById('qcd-connection-result');
-            result.textContent = 'Testing...';
+            result.textContent = 'Test en cours…';
             result.className = 'qcd-result';
             post('test', {
                 host: field(form, 'host'),
@@ -120,20 +127,32 @@
     });
 
     function refreshStatistics() {
+        var summary = document.getElementById('qcd-stats-summary');
+        summary.innerHTML = '<p class="qcd-hint">Chargement…</p>';
         get('stats').then(function (res) {
-            if (!res.success) { return; }
-            var summary = document.getElementById('qcd-stats-summary');
             summary.innerHTML = '';
-            var fields = { hits: 'Hits', misses: 'Misses', hit_ratio: 'Hit %', keys: 'Keys', latency_ms: 'Latency ms', used_memory_human: 'Memory' };
+            if (!res.success || !res.overview || res.overview.available === false) {
+                summary.innerHTML = '<p class="qcd-check-empty">Statistiques indisponibles : Redis est injoignable.</p>';
+                return;
+            }
+            var fields = {
+                hits: 'Succès (hits)', misses: 'Échecs (misses)', hit_ratio: 'Taux de succès (%)',
+                keys: 'Clés en cache', latency_ms: 'Latence (ms)', used_memory_human: 'Mémoire utilisée'
+            };
             Object.keys(fields).forEach(function (k) {
                 summary.insertAdjacentHTML('beforeend',
                     '<div class="qcd-card"><span class="qcd-metric">' + (res.overview[k] !== undefined ? res.overview[k] : '-') + '</span><span class="qcd-label">' + fields[k] + '</span></div>');
             });
             summary.insertAdjacentHTML('beforeend',
-                '<div class="qcd-card"><span class="qcd-metric">' + res.average_ttl + '</span><span class="qcd-label">Avg TTL</span></div>');
+                '<div class="qcd-card"><span class="qcd-metric">' + res.average_ttl + '</span><span class="qcd-label">Durée de vie moy. (s)</span></div>');
             var body = document.querySelector('#qcd-heavy-keys tbody');
             body.innerHTML = '';
-            (res.heavy_keys || []).forEach(function (row) {
+            var keys = res.heavy_keys || [];
+            if (keys.length === 0) {
+                body.innerHTML = '<tr><td colspan="3" class="qcd-check-empty">Aucune clé à afficher.</td></tr>';
+                return;
+            }
+            keys.forEach(function (row) {
                 body.insertAdjacentHTML('beforeend', '<tr><td>' + row.key + '</td><td>' + row.bytes + '</td><td>' + row.ttl + '</td></tr>');
             });
         });
@@ -151,16 +170,16 @@
             var type = btn.getAttribute('data-qcd-purge');
             var result = document.getElementById('qcd-purge-result');
             var data = { type: type };
-            if (type === 'all' && !window.confirm('Flush the whole cache namespace?')) { return; }
+            if (type === 'all' && !window.confirm('Vider tout le cache de cette boutique ?')) { return; }
             if (type === 'prefix') { data.prefix = document.getElementById('qcd-purge-prefix').value; }
             if (type === 'tags') { data.tags = document.getElementById('qcd-purge-tags').value; }
-            result.textContent = 'Working...';
+            result.textContent = 'Traitement…';
             result.className = 'qcd-result';
             post('purge', data).then(function (res) {
                 result.className = 'qcd-result ' + (res.success ? 'ok' : 'err');
-                if (res.deleted !== undefined) { result.textContent = res.deleted + ' key(s) deleted.'; }
-                else if (res.expired_keys !== undefined) { result.textContent = res.expired_keys + ' expired key(s) reported by Redis.'; }
-                else { result.textContent = 'Done.'; }
+                if (res.deleted !== undefined) { result.textContent = res.deleted + ' clé(s) supprimée(s).'; }
+                else if (res.expired_keys !== undefined) { result.textContent = res.expired_keys + ' clé(s) expirée(s) signalée(s) par Redis.'; }
+                else { result.textContent = 'Terminé.'; }
             });
         });
     });
@@ -173,26 +192,43 @@
             app.querySelectorAll('.qcd-warmup-type:checked').forEach(function (c) { types.push(c.value); });
             var bar = document.getElementById('qcd-warmup-bar');
             var result = document.getElementById('qcd-warmup-result');
-            result.textContent = 'Building queue...';
+            bar.style.width = '0'; bar.textContent = '0%';
+            result.className = 'qcd-result';
+            result.textContent = 'Construction de la file…';
             warmupBtn.disabled = true;
             post('warmup-build', { types: types }).then(function (res) {
+                if (!res || res.success === false) {
+                    result.className = 'qcd-result err';
+                    result.textContent = (res && res.message) ? res.message : 'Échec du préchauffage.';
+                    warmupBtn.disabled = false;
+                    return;
+                }
+                result.className = 'qcd-result ' + (res.total > 0 ? 'ok' : 'err');
+                if (res.message) { result.textContent = res.message; }
                 runWarmupBatches(0, res.total || 0, bar, result, warmupBtn);
             });
         });
     }
 
     function runWarmupBatches(offset, total, bar, result, btn) {
-        if (total === 0) { result.textContent = 'Nothing to warm up.'; btn.disabled = false; return; }
+        if (total === 0) { if (!result.textContent) { result.textContent = 'Rien à préchauffer.'; } btn.disabled = false; return; }
         post('warmup-batch', { offset: offset, size: 5 }).then(function (res) {
+            if (!res || res.success === false) {
+                result.className = 'qcd-result err';
+                result.textContent = (res && res.message) ? res.message : 'Échec du préchauffage.';
+                btn.disabled = false;
+                return;
+            }
             var done = Math.min(offset + res.processed, total);
             var pct = Math.round((done / total) * 100);
             bar.style.width = pct + '%';
             bar.textContent = pct + '%';
-            result.textContent = done + ' / ' + total + ' URLs processed.';
+            result.textContent = done + ' / ' + total + ' URLs traitées…';
             if (done < total && res.processed > 0) {
                 runWarmupBatches(done, total, bar, result, btn);
             } else {
-                result.textContent = 'Warmup complete: ' + done + ' URLs.';
+                result.className = 'qcd-result ok';
+                result.textContent = 'Préchauffage terminé : ' + done + ' URLs.';
                 btn.disabled = false;
             }
         });
@@ -200,10 +236,16 @@
 
     /* ---------------- Diagnostics ---------------- */
     function runDiagnostics() {
+        var list = document.getElementById('qcd-diagnostic-list');
+        list.innerHTML = '<li class="qcd-check-empty">Vérifications en cours…</li>';
         get('diagnostics').then(function (res) {
-            var list = document.getElementById('qcd-diagnostic-list');
             list.innerHTML = '';
-            (res.checks || []).forEach(function (c) {
+            var checks = res.checks || [];
+            if (checks.length === 0) {
+                list.innerHTML = '<li class="qcd-check-empty">Aucune vérification disponible.</li>';
+                return;
+            }
+            checks.forEach(function (c) {
                 list.insertAdjacentHTML('beforeend',
                     '<li class="qcd-check ' + c.level + '"><span class="dot"></span><span class="label">' + c.label + '</span><span>' + c.message + '</span></li>');
             });
@@ -214,12 +256,13 @@
     if (benchBtn) {
         benchBtn.addEventListener('click', function () {
             var box = document.getElementById('qcd-benchmark-result');
-            box.innerHTML = '<p>Running 1000 ops per operation...</p>';
+            box.innerHTML = '<p class="qcd-hint">Mesure en cours (1000 opérations par type)…</p>';
+            var opLabels = { write: 'Écriture', read: 'Lecture', delete: 'Suppression' };
             post('benchmark', {}).then(function (res) {
                 box.innerHTML = '';
                 Object.keys(res.benchmark || {}).forEach(function (op) {
                     box.insertAdjacentHTML('beforeend',
-                        '<div class="qcd-card"><span class="qcd-metric">' + res.benchmark[op] + '</span><span class="qcd-label">' + op + ' (ms/1k)</span></div>');
+                        '<div class="qcd-card"><span class="qcd-metric">' + res.benchmark[op] + '</span><span class="qcd-label">' + (opLabels[op] || op) + ' (ms/1k)</span></div>');
                 });
             });
         });

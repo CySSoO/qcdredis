@@ -123,7 +123,7 @@ final class QcdRedisController extends AbstractController
 
         return $this->json([
             'success' => $ok,
-            'message' => $ok ? 'Connection successful.' : ('Connection failed: ' . $connection->getLastError()),
+            'message' => $ok ? 'Connexion réussie.' : ('Échec de la connexion : ' . $connection->getLastError()),
         ]);
     }
 
@@ -170,17 +170,101 @@ final class QcdRedisController extends AbstractController
 
     public function warmupBuild(Request $request): JsonResponse
     {
-        /** @var string[] $types */
-        $types = array_map('strval', (array) $request->request->all('types'));
+        $types = $this->readWarmupTypes($request);
 
-        return $this->json(['success' => true, 'total' => $this->warmer->buildAndStoreQueue($types)]);
+        if ($types === []) {
+            return $this->json([
+                'success' => true,
+                'total' => 0,
+                'received_types' => $types,
+                'message' => 'Sélectionnez au moins un type de contenu à préchauffer.',
+            ]);
+        }
+
+        try {
+            $detail = $this->warmer->buildAndStoreQueueDetailed($types);
+        } catch (\Throwable $e) {
+            return $this->json(['success' => false, 'total' => 0, 'received_types' => $types, 'message' => 'Échec de la construction : ' . $e->getMessage()]);
+        }
+
+        return $this->json([
+            'success' => true,
+            'total' => $detail['total'],
+            'counts' => $detail['counts'],
+            'errors' => $detail['errors'],
+            'sample' => $detail['sample'],
+            'received_types' => $types,
+            'message' => $this->warmupBuildMessage($detail),
+        ]);
+    }
+
+    /**
+     * Read the warmup content types from the request, tolerating both the
+     * `types[]` POST array and a comma-separated / query fallback.
+     *
+     * @return string[]
+     */
+    private function readWarmupTypes(Request $request): array
+    {
+        $all = $request->request->all();
+        $raw = $all['types'] ?? ($request->query->all()['types'] ?? []);
+
+        if (is_string($raw)) {
+            $raw = explode(',', $raw);
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($value): string => trim((string) $value),
+            (array) $raw
+        )));
+    }
+
+    /**
+     * Build a human-readable summary of a warmup queue build for the UI.
+     *
+     * @param array{total:int,counts:array<string,int>,errors:array<string,string>,sample:?string} $detail
+     */
+    private function warmupBuildMessage(array $detail): string
+    {
+        $parts = [];
+        foreach ($detail['counts'] as $type => $count) {
+            $parts[] = $type . ': ' . $count;
+        }
+        $breakdown = $parts === [] ? '' : ' (' . implode(', ', $parts) . ')';
+
+        $message = $detail['total'] > 0
+            ? sprintf('%d URL(s) en file%s.', $detail['total'], $breakdown)
+            : sprintf('Aucune URL générée%s - vérifiez l\'URL de la boutique / le contexte multiboutique.', $breakdown);
+
+        if ($detail['errors'] !== []) {
+            $errParts = [];
+            foreach ($detail['errors'] as $type => $err) {
+                $errParts[] = $type . ' : ' . $err;
+            }
+            $message .= ' Erreurs - ' . implode('; ', $errParts);
+        }
+
+        return $message;
     }
 
     public function warmupBatch(Request $request): JsonResponse
     {
         $offset = (int) $request->request->get('offset');
         $size = max(1, min(20, (int) $request->request->get('size', 5)));
-        $result = $this->warmer->warmStoredBatch($offset, $size);
+
+        try {
+            $result = $this->warmer->warmStoredBatch($offset, $size);
+        } catch (\Throwable $e) {
+            return $this->json([
+                'success' => false,
+                'processed' => 0,
+                'succeeded' => 0,
+                'failed' => 0,
+                'total' => 0,
+                'message' => 'Échec du préchauffage : ' . $e->getMessage(),
+            ]);
+        }
+
         $result['success'] = true;
 
         return $this->json($result);

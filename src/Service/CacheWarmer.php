@@ -53,14 +53,33 @@ final class CacheWarmer
      */
     public function buildAndStoreQueue(array $types): int
     {
-        $queue = $this->buildQueue($types);
+        return $this->buildAndStoreQueueDetailed($types)['total'];
+    }
+
+    /**
+     * Build + store the queue and return a verbose breakdown for the UI so an
+     * empty result can be told apart from a real error and pinpointed per type.
+     *
+     * @param string[] $types
+     *
+     * @return array{total:int,counts:array<string,int>,errors:array<string,string>,sample:?string}
+     */
+    public function buildAndStoreQueueDetailed(array $types): array
+    {
+        $built = $this->buildQueueDetailed($types);
+        $queue = $built['urls'];
         $key = $this->provider->getKeyPrefix() . self::QUEUE_KEY;
 
         $this->connectionFactory->create()->execute(
             static fn (\Redis $r) => $r->setex($key, 3600, (string) json_encode($queue))
         );
 
-        return count($queue);
+        return [
+            'total' => count($queue),
+            'counts' => $built['counts'],
+            'errors' => $built['errors'],
+            'sample' => $queue[0] ?? null,
+        ];
     }
 
     /**
@@ -90,30 +109,53 @@ final class CacheWarmer
      *
      * @return string[]
      */
-    private function buildQueue(array $types): array
+    /**
+     * @param string[] $types
+     *
+     * @return array{urls:string[],counts:array<string,int>,errors:array<string,string>}
+     */
+    private function buildQueueDetailed(array $types): array
     {
         $context = $this->legacyContext->getContext();
-        $link = $context->link;
-        $langId = (int) $context->language->id;
+        $link = $context->link ?? null;
+
+        if (!$link instanceof \Link) {
+            throw new \RuntimeException('Le générateur de liens front est indisponible dans ce contexte.');
+        }
+
+        $langId = (int) ($context->language->id ?? 0);
+
+        $builders = [
+            self::TYPE_HOME => fn (): array => array_filter([(string) $link->getPageLink('index', true)]),
+            self::TYPE_CATEGORIES => fn (): array => $this->categoryUrls($link, $langId),
+            self::TYPE_PRODUCTS => fn (): array => $this->productUrls($link, $langId),
+            self::TYPE_CMS => fn (): array => $this->cmsUrls($link, $langId),
+        ];
+
         $urls = [];
+        $counts = [];
+        $errors = [];
 
-        if (in_array(self::TYPE_HOME, $types, true)) {
-            $urls[] = $link->getPageLink('index', true);
+        foreach ($builders as $type => $builder) {
+            if (!in_array($type, $types, true)) {
+                continue;
+            }
+
+            try {
+                $sectionUrls = array_values(array_filter(array_map('strval', $builder())));
+                $counts[$type] = count($sectionUrls);
+                $urls = array_merge($urls, $sectionUrls);
+            } catch (\Throwable $e) {
+                $counts[$type] = 0;
+                $errors[$type] = $e->getMessage();
+            }
         }
 
-        if (in_array(self::TYPE_CATEGORIES, $types, true)) {
-            $urls = array_merge($urls, $this->categoryUrls($link, $langId));
-        }
-
-        if (in_array(self::TYPE_PRODUCTS, $types, true)) {
-            $urls = array_merge($urls, $this->productUrls($link, $langId));
-        }
-
-        if (in_array(self::TYPE_CMS, $types, true)) {
-            $urls = array_merge($urls, $this->cmsUrls($link, $langId));
-        }
-
-        return array_values(array_unique(array_filter($urls)));
+        return [
+            'urls' => array_values(array_unique($urls)),
+            'counts' => $counts,
+            'errors' => $errors,
+        ];
     }
 
     /**
