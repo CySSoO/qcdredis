@@ -14,7 +14,7 @@ namespace QcdGone\QcdRedis\Cache;
 /**
  * Resilient wrapper around the phpredis extension (\Redis).
  *
- * Owns the connection lifecycle only — connecting, authenticating, selecting
+ * Owns the connection lifecycle only - connecting, authenticating, selecting
  * the database and transparently reconnecting once when a command fails.
  * Predis is never used. Serialization and compression live in QcdRedisCache.
  */
@@ -26,11 +26,8 @@ final class RedisConnection
 
     private string $lastError = '';
 
-    private RedisConfig $config;
-
-    public function __construct(RedisConfig $config)
+    public function __construct(private readonly RedisConfig $config)
     {
-        $this->config = $config;
     }
 
     /**

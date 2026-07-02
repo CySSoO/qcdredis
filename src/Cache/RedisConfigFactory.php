@@ -63,9 +63,6 @@ final class RedisConfigFactory
         self::KEY_SERIALIZER => RedisConfig::SERIALIZER_PHP,
     ];
 
-    /** @var array<string, mixed>|null */
-    private static ?array $legacyValues = null;
-
     /**
      * Build a config from an associative array keyed by the QCDREDIS_* keys.
      * Missing keys fall back to defaults.
@@ -94,9 +91,8 @@ final class RedisConfigFactory
     }
 
     /**
-     * Build a config by reading persisted configuration without using
-     * PrestaShop's Configuration class, which itself may touch the cache engine
-     * and recursively instantiate CacheRedis during early boot.
+     * Build a config by reading the global PrestaShop Configuration class.
+     * Used exclusively by the early-boot cache engine.
      */
     public static function fromLegacyConfiguration(): RedisConfig
     {
@@ -128,80 +124,18 @@ final class RedisConfigFactory
     }
 
     /**
-     * Read a single value from the configuration table, defensively.
+     * Read a single value from the global Configuration class, defensively.
      */
     private static function readLegacy(string $key): mixed
     {
         try {
-            $values = self::readLegacyValues();
-
-            if (array_key_exists($key, $values)) {
-                return $values[$key];
+            if (class_exists('Configuration', false) && \Configuration::hasKey($key)) {
+                return \Configuration::get($key);
             }
         } catch (\Throwable) {
             // Database not ready during early boot: fall back to defaults.
         }
 
         return self::DEFAULTS[$key] ?? null;
-    }
-
-    /**
-     * Read all known QCDREDIS_* keys directly through PDO. Using PrestaShop's
-     * Db or Configuration services here can recursively boot the cache engine.
-     *
-     * @return array<string, mixed>
-     */
-    private static function readLegacyValues(): array
-    {
-        if (self::$legacyValues !== null) {
-            return self::$legacyValues;
-        }
-
-        self::$legacyValues = [];
-
-        if (
-            !class_exists('PDO')
-            || !defined('_DB_SERVER_')
-            || !defined('_DB_NAME_')
-            || !defined('_DB_USER_')
-            || !defined('_DB_PASSWD_')
-            || !defined('_DB_PREFIX_')
-        ) {
-            return self::$legacyValues;
-        }
-
-        $host = (string) _DB_SERVER_;
-        $port = defined('_DB_PORT_') ? (string) _DB_PORT_ : '';
-
-        if ($port === '' && str_contains($host, ':')) {
-            [$host, $port] = explode(':', $host, 2);
-        }
-
-        $dsn = 'mysql:host=' . $host . ($port !== '' ? ';port=' . $port : '') . ';dbname=' . _DB_NAME_ . ';charset=utf8mb4';
-        $pdo = new \PDO($dsn, (string) _DB_USER_, (string) _DB_PASSWD_, [
-            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-            \PDO::ATTR_TIMEOUT => 2,
-        ]);
-
-        $keys = array_keys(self::DEFAULTS);
-        $placeholders = implode(',', array_fill(0, count($keys), '?'));
-        $table = str_replace('`', '``', (string) _DB_PREFIX_ . 'configuration');
-        $statement = $pdo->prepare(
-            'SELECT `name`, `value` FROM `' . $table . '`'
-            . ' WHERE `name` IN (' . $placeholders . ')'
-            . ' ORDER BY `id_shop` DESC, `id_shop_group` DESC'
-        );
-        $statement->execute($keys);
-
-        foreach ($statement->fetchAll() as $row) {
-            $name = (string) ($row['name'] ?? '');
-
-            if ($name !== '' && !array_key_exists($name, self::$legacyValues)) {
-                self::$legacyValues[$name] = $row['value'] ?? null;
-            }
-        }
-
-        return self::$legacyValues;
     }
 }

@@ -10,6 +10,7 @@ qcdredis_admin_configure:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::index'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis
 
 qcdredis_admin_test_connection:
     path: /qcdredis/test-connection
@@ -17,6 +18,7 @@ qcdredis_admin_test_connection:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::testConnection'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:testConnection
 
 qcdredis_admin_stats:
     path: /qcdredis/stats
@@ -24,6 +26,7 @@ qcdredis_admin_stats:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::stats'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:stats
 
 qcdredis_admin_diagnostics:
     path: /qcdredis/diagnostics
@@ -31,6 +34,7 @@ qcdredis_admin_diagnostics:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::diagnostics'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:diagnostics
 
 qcdredis_admin_benchmark:
     path: /qcdredis/benchmark
@@ -38,6 +42,7 @@ qcdredis_admin_benchmark:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::benchmark'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:benchmark
 
 qcdredis_admin_export_csv:
     path: /qcdredis/export-csv
@@ -45,6 +50,7 @@ qcdredis_admin_export_csv:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::exportCsv'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:exportCsv
 
 qcdredis_admin_purge:
     path: /qcdredis/purge
@@ -52,6 +58,7 @@ qcdredis_admin_purge:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::purge'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:purge
 
 qcdredis_admin_warmup_build:
     path: /qcdredis/warmup/build
@@ -59,6 +66,7 @@ qcdredis_admin_warmup_build:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::warmupBuild'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:warmupBuild
 
 qcdredis_admin_warmup_batch:
     path: /qcdredis/warmup/batch
@@ -66,3 +74,4 @@ qcdredis_admin_warmup_batch:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::warmupBatch'
         _legacy_controller: AdminQcdRedis
+        _legacy_link: AdminQcdRedis:warmupBatch

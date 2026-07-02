@@ -20,3 +20,4 @@ services:
     QcdGone\QcdRedis\Controller\:
         resource: '../src/Controller/*'
         public: true
+        tags: ['controller.service_arguments']

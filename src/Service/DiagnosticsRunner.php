@@ -119,9 +119,9 @@ final class DiagnosticsRunner
 
     private function checkPhpVersion(): array
     {
-        $level = version_compare(PHP_VERSION, '8.0.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
+        $level = version_compare(PHP_VERSION, '8.2.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
 
-        return $this->result('PHP version', $level, PHP_VERSION . ' (>= 8.0 required).');
+        return $this->result('PHP version', $level, PHP_VERSION . ' (>= 8.2 required).');
     }
 
     private function checkPrestaShopVersion(): array

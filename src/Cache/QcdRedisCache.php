@@ -18,14 +18,12 @@ namespace QcdGone\QcdRedis\Cache;
  * object: PrestaShop instantiates the cache backend through
  * `Cache::getInstance()` extremely early in the request, before the Symfony
  * container is available. It extends the native \Cache class so a tiny global
- * `CacheRedis` stub — generated in classes/cache on install — can point at it
+ * `CacheRedis` stub - generated in classes/cache on install - can point at it
  * without any override.
  *
- * Features: per-shop key namespacing (multishop safe), configurable default
- * TTL, pluggable serializer (php / igbinary / json) and optional gzip
- * compression with an automatic size threshold. Payloads carry a 2-byte
- * self-describing header so serializer/compression changes never corrupt reads.
- * Connection loss degrades gracefully to a permanent cache miss.
+ * Payloads carry a 2-byte self-describing header (serializer flag + compression
+ * flag) so serializer/compression changes never corrupt reads. Connection loss
+ * degrades gracefully to a permanent cache miss.
  */
 class QcdRedisCache extends \Cache
 {
@@ -40,35 +38,17 @@ class QcdRedisCache extends \Cache
 
     private string $prefix;
 
-    private static bool $constructing = false;
-
     public function __construct()
     {
-        $this->qcdConfig = new RedisConfig();
+        $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
         $this->qcdConnection = new RedisConnection($this->qcdConfig);
-        $this->prefix = '';
+        $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
 
-        if (self::$constructing) {
-            $this->is_connected = false;
+        $this->is_connected = $this->qcdConnection->isAvailable();
 
-            return;
-        }
-
-        self::$constructing = true;
-
-        try {
-            $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
-            $this->qcdConnection = new RedisConnection($this->qcdConfig);
-            $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
-
-            $this->is_connected = $this->qcdConnection->isAvailable();
-
-            if ($this->is_connected) {
-                $stored = $this->readKeysIndex();
-                $this->keys = is_array($stored) ? $stored : [];
-            }
-        } finally {
-            self::$constructing = false;
+        if ($this->is_connected) {
+            $stored = $this->readKeysIndex();
+            $this->keys = is_array($stored) ? $stored : [];
         }
     }
 
