@@ -19,10 +19,14 @@ use QcdGone\QcdRedis\Config\ConfigurationProvider;
  */
 final class CachePurger
 {
-    public function __construct(
-        private readonly RedisConnectionFactory $connectionFactory,
-        private readonly ConfigurationProvider $provider,
-    ) {
+    private RedisConnectionFactory $connectionFactory;
+
+    private ConfigurationProvider $provider;
+
+    public function __construct(RedisConnectionFactory $connectionFactory, ConfigurationProvider $provider)
+    {
+        $this->connectionFactory = $connectionFactory;
+        $this->provider = $provider;
     }
 
     public function purgeAll(): int

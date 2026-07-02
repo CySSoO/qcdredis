@@ -38,15 +38,36 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class QcdRedisController extends AbstractController
 {
+    private ConfigurationProvider $provider;
+
+    private ConfigurationUpdater $updater;
+
+    private RedisConnectionFactory $connectionFactory;
+
+    private StatisticsProvider $statistics;
+
+    private DiagnosticsRunner $diagnostics;
+
+    private CachePurger $purger;
+
+    private CacheWarmer $warmer;
+
     public function __construct(
-        private readonly ConfigurationProvider $provider,
-        private readonly ConfigurationUpdater $updater,
-        private readonly RedisConnectionFactory $connectionFactory,
-        private readonly StatisticsProvider $statistics,
-        private readonly DiagnosticsRunner $diagnostics,
-        private readonly CachePurger $purger,
-        private readonly CacheWarmer $warmer,
+        ConfigurationProvider $provider,
+        ConfigurationUpdater $updater,
+        RedisConnectionFactory $connectionFactory,
+        StatisticsProvider $statistics,
+        DiagnosticsRunner $diagnostics,
+        CachePurger $purger,
+        CacheWarmer $warmer
     ) {
+        $this->provider = $provider;
+        $this->updater = $updater;
+        $this->connectionFactory = $connectionFactory;
+        $this->statistics = $statistics;
+        $this->diagnostics = $diagnostics;
+        $this->purger = $purger;
+        $this->warmer = $warmer;
     }
 
     /**

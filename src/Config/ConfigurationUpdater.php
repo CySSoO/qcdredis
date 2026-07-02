@@ -22,8 +22,11 @@ use QcdGone\QcdRedis\Cache\RedisConfigFactory;
  */
 final class ConfigurationUpdater
 {
-    public function __construct(private readonly Configuration $configuration)
+    private Configuration $configuration;
+
+    public function __construct(Configuration $configuration)
     {
+        $this->configuration = $configuration;
     }
 
     /**

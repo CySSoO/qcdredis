@@ -23,21 +23,60 @@ final class RedisConfig
     public const SERIALIZER_IGBINARY = 'igbinary';
     public const SERIALIZER_JSON = 'json';
 
+    private string $host;
+
+    private int $port;
+
+    private string $password;
+
+    private int $database;
+
+    private float $timeout;
+
+    private bool $tls;
+
+    private bool $enabled;
+
+    private int $defaultTtl;
+
+    private string $prefix;
+
+    private bool $compression;
+
+    private bool $compressionAuto;
+
+    private int $compressionThreshold;
+
+    private string $serializer;
+
     public function __construct(
-        private readonly string $host = '127.0.0.1',
-        private readonly int $port = 6379,
-        private readonly string $password = '',
-        private readonly int $database = 0,
-        private readonly float $timeout = 2.0,
-        private readonly bool $tls = false,
-        private readonly bool $enabled = true,
-        private readonly int $defaultTtl = 0,
-        private readonly string $prefix = 'ps_',
-        private readonly bool $compression = false,
-        private readonly bool $compressionAuto = true,
-        private readonly int $compressionThreshold = 1024,
-        private readonly string $serializer = self::SERIALIZER_PHP,
+        string $host = '127.0.0.1',
+        int $port = 6379,
+        string $password = '',
+        int $database = 0,
+        float $timeout = 2.0,
+        bool $tls = false,
+        bool $enabled = true,
+        int $defaultTtl = 0,
+        string $prefix = 'ps_',
+        bool $compression = false,
+        bool $compressionAuto = true,
+        int $compressionThreshold = 1024,
+        string $serializer = self::SERIALIZER_PHP
     ) {
+        $this->host = $host;
+        $this->port = $port;
+        $this->password = $password;
+        $this->database = $database;
+        $this->timeout = $timeout;
+        $this->tls = $tls;
+        $this->enabled = $enabled;
+        $this->defaultTtl = $defaultTtl;
+        $this->prefix = $prefix;
+        $this->compression = $compression;
+        $this->compressionAuto = $compressionAuto;
+        $this->compressionThreshold = $compressionThreshold;
+        $this->serializer = $serializer;
     }
 
     public function getHost(): string

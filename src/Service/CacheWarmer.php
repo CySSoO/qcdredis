@@ -28,11 +28,20 @@ final class CacheWarmer
 
     private const QUEUE_KEY = '__qcdredis_warmup_queue__';
 
+    private LegacyContext $legacyContext;
+
+    private RedisConnectionFactory $connectionFactory;
+
+    private ConfigurationProvider $provider;
+
     public function __construct(
-        private readonly LegacyContext $legacyContext,
-        private readonly RedisConnectionFactory $connectionFactory,
-        private readonly ConfigurationProvider $provider,
+        LegacyContext $legacyContext,
+        RedisConnectionFactory $connectionFactory,
+        ConfigurationProvider $provider
     ) {
+        $this->legacyContext = $legacyContext;
+        $this->connectionFactory = $connectionFactory;
+        $this->provider = $provider;
     }
 
     /**

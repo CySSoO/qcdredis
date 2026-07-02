@@ -26,8 +26,11 @@ final class RedisConnection
 
     private string $lastError = '';
 
-    public function __construct(private readonly RedisConfig $config)
+    private RedisConfig $config;
+
+    public function __construct(RedisConfig $config)
     {
+        $this->config = $config;
     }
 
     /**

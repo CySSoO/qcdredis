@@ -29,10 +29,14 @@ final class DiagnosticsRunner
 
     private ?RedisConnection $connection = null;
 
-    public function __construct(
-        private readonly RedisConnectionFactory $connectionFactory,
-        private readonly ConfigurationProvider $provider,
-    ) {
+    private RedisConnectionFactory $connectionFactory;
+
+    private ConfigurationProvider $provider;
+
+    public function __construct(RedisConnectionFactory $connectionFactory, ConfigurationProvider $provider)
+    {
+        $this->connectionFactory = $connectionFactory;
+        $this->provider = $provider;
     }
 
     /**
@@ -115,9 +119,9 @@ final class DiagnosticsRunner
 
     private function checkPhpVersion(): array
     {
-        $level = version_compare(PHP_VERSION, '8.2.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
+        $level = version_compare(PHP_VERSION, '8.0.0', '>=') ? self::LEVEL_OK : self::LEVEL_ERROR;
 
-        return $this->result('PHP version', $level, PHP_VERSION . ' (>= 8.2 required).');
+        return $this->result('PHP version', $level, PHP_VERSION . ' (>= 8.0 required).');
     }
 
     private function checkPrestaShopVersion(): array

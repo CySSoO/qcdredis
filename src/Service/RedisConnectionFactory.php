@@ -21,8 +21,11 @@ use QcdGone\QcdRedis\Config\ConfigurationProvider;
  */
 final class RedisConnectionFactory
 {
-    public function __construct(private readonly ConfigurationProvider $provider)
+    private ConfigurationProvider $provider;
+
+    public function __construct(ConfigurationProvider $provider)
     {
+        $this->provider = $provider;
     }
 
     public function create(?RedisConfig $override = null): RedisConnection

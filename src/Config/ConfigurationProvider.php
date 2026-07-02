@@ -23,10 +23,14 @@ use QcdGone\QcdRedis\Cache\RedisConfigFactory;
  */
 final class ConfigurationProvider
 {
-    public function __construct(
-        private readonly Configuration $configuration,
-        private readonly LegacyContext $legacyContext,
-    ) {
+    private Configuration $configuration;
+
+    private LegacyContext $legacyContext;
+
+    public function __construct(Configuration $configuration, LegacyContext $legacyContext)
+    {
+        $this->configuration = $configuration;
+        $this->legacyContext = $legacyContext;
     }
 
     /**

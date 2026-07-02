@@ -25,10 +25,14 @@ final class StatisticsProvider
 
     private ?RedisConnection $connection = null;
 
-    public function __construct(
-        private readonly RedisConnectionFactory $connectionFactory,
-        private readonly ConfigurationProvider $provider,
-    ) {
+    private RedisConnectionFactory $connectionFactory;
+
+    private ConfigurationProvider $provider;
+
+    public function __construct(RedisConnectionFactory $connectionFactory, ConfigurationProvider $provider)
+    {
+        $this->connectionFactory = $connectionFactory;
+        $this->provider = $provider;
     }
 
     /**
