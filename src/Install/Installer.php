@@ -18,6 +18,7 @@ use PrestaShopAutoload;
 use QcdGone\QcdRedis\Cache\RedisConfigFactory;
 use QcdGone\QcdRedis\Cache\RedisConnection;
 use QcdGone\QcdRedis\Context\ContextResolver;
+use QcdGone\QcdRedis\Service\ObjectCacheRefresher;
 use Tab;
 use Tools;
 
@@ -106,8 +107,23 @@ final class Installer
         }
 
         $this->clearSymfonyCache();
+        $this->registerHooks();
 
         return $this->installTab();
+    }
+
+    /**
+     * Attach the module to the object-lifecycle hooks that drive the automatic
+     * per-object purge + warmup. Best-effort: a hook that cannot be registered
+     * must not fail the install.
+     */
+    private function registerHooks(): void
+    {
+        try {
+            $this->module->registerHook(ObjectCacheRefresher::hooks());
+        } catch (\Throwable $e) {
+            $this->lastError = 'Hook registration warning: ' . $e->getMessage();
+        }
     }
 
     /**

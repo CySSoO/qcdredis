@@ -65,15 +65,23 @@ class QcdRedisCache extends \Cache
 
         self::$isConstructing = true;
 
+        $shopId = self::resolveShopId();
+        $shopGroupId = self::resolveShopGroupId();
+
         try {
-            $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
+            // Resolve the configuration for the exact current shop context, the
+            // same way Configuration::get would. If it cannot be read reliably
+            // the catch below degrades to a no-op cache instead of running under
+            // default values (e.g. the 'ps_' prefix), which would split the
+            // keyspace between 'qcd_:' and 'ps_:'.
+            $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration($shopId, $shopGroupId);
 
             if (!$this->qcdConfig->isEnabled()) {
                 return;
             }
 
             $this->qcdConnection = new RedisConnection($this->qcdConfig);
-            $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
+            $this->prefix = $this->qcdConfig->getKeyPrefix($shopId);
 
             $this->is_connected = $this->qcdConnection->isAvailable();
 
@@ -81,6 +89,13 @@ class QcdRedisCache extends \Cache
                 $stored = $this->readKeysIndex();
                 $this->keys = is_array($stored) ? $stored : [];
             }
+        } catch (\Throwable) {
+            // Configuration unreadable this request: never fall back to a
+            // divergent default prefix. Stay a permanent-miss no-op cache.
+            $this->qcdConfig = null;
+            $this->qcdConnection = null;
+            $this->prefix = '';
+            $this->is_connected = false;
         } finally {
             self::$isConstructing = false;
         }
@@ -452,7 +467,23 @@ class QcdRedisCache extends \Cache
     private static function resolveShopId(): int
     {
         if (class_exists('Shop', false) && method_exists('Shop', 'getContextShopID')) {
-            return (int) \Shop::getContextShopID(true);
+            // Use the real context shop id (not the null-in-single-shop variant)
+            // so the engine's key suffix ':sN:' matches the one the admin
+            // services (purge / stats / warmup) compute via the same call.
+            return max(0, (int) \Shop::getContextShopID());
+        }
+
+        return 0;
+    }
+
+    /**
+     * Resolve the current shop group id, mirroring resolveShopId(), so the
+     * configuration read honours the same scope as PrestaShop's Configuration.
+     */
+    private static function resolveShopGroupId(): int
+    {
+        if (class_exists('Shop', false) && method_exists('Shop', 'getContextShopGroupID')) {
+            return max(0, (int) \Shop::getContextShopGroupID());
         }
 
         return 0;

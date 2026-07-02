@@ -2,7 +2,7 @@
 <module>
     <name>qcdredis</name>
     <displayName><![CDATA[QCD Redis]]></displayName>
-    <version><![CDATA[1.0.0]]></version>
+    <version><![CDATA[1.0.1]]></version>
     <description><![CDATA[Replace the PrestaShop cache engine with Redis. Native, reversible, without overrides.]]></description>
     <author><![CDATA[410 Gone]]></author>
     <tab><![CDATA[administration]]></tab>

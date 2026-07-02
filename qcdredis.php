@@ -37,7 +37,7 @@ class Qcdredis extends Module
     {
         $this->name = 'qcdredis';
         $this->tab = 'administration';
-        $this->version = '1.0.0';
+        $this->version = '1.0.1';
         $this->author = '410 Gone';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];
@@ -116,6 +116,109 @@ class Qcdredis extends Module
     public function getInstallerError(): string
     {
         return $this->getInstaller()->getLastError();
+    }
+
+    /* ---- Automatic per-object Redis refresh (purge + targeted warmup) ---- */
+
+    public function hookActionObjectProductAddAfter(array $params): void
+    {
+        $this->qcdRefresh('Product', $params, true);
+    }
+
+    public function hookActionObjectProductUpdateAfter(array $params): void
+    {
+        $this->qcdRefresh('Product', $params, true);
+    }
+
+    public function hookActionObjectProductDeleteAfter(array $params): void
+    {
+        $this->qcdRefresh('Product', $params, false);
+    }
+
+    public function hookActionObjectCategoryAddAfter(array $params): void
+    {
+        $this->qcdRefresh('Category', $params, true);
+    }
+
+    public function hookActionObjectCategoryUpdateAfter(array $params): void
+    {
+        $this->qcdRefresh('Category', $params, true);
+    }
+
+    public function hookActionObjectCategoryDeleteAfter(array $params): void
+    {
+        $this->qcdRefresh('Category', $params, false);
+    }
+
+    public function hookActionObjectCMSAddAfter(array $params): void
+    {
+        $this->qcdRefresh('CMS', $params, true);
+    }
+
+    public function hookActionObjectCMSUpdateAfter(array $params): void
+    {
+        $this->qcdRefresh('CMS', $params, true);
+    }
+
+    public function hookActionObjectCMSDeleteAfter(array $params): void
+    {
+        $this->qcdRefresh('CMS', $params, false);
+    }
+
+    public function hookActionObjectManufacturerAddAfter(array $params): void
+    {
+        $this->qcdRefresh('Manufacturer', $params, true);
+    }
+
+    public function hookActionObjectManufacturerUpdateAfter(array $params): void
+    {
+        $this->qcdRefresh('Manufacturer', $params, true);
+    }
+
+    public function hookActionObjectManufacturerDeleteAfter(array $params): void
+    {
+        $this->qcdRefresh('Manufacturer', $params, false);
+    }
+
+    public function hookActionObjectSupplierAddAfter(array $params): void
+    {
+        $this->qcdRefresh('Supplier', $params, true);
+    }
+
+    public function hookActionObjectSupplierUpdateAfter(array $params): void
+    {
+        $this->qcdRefresh('Supplier', $params, true);
+    }
+
+    public function hookActionObjectSupplierDeleteAfter(array $params): void
+    {
+        $this->qcdRefresh('Supplier', $params, false);
+    }
+
+    /**
+     * Forward a saved object to the refresher (purge + object-scoped warmup).
+     * Never throws: an administrator's save must never be broken by the cache.
+     *
+     * @param array<string, mixed> $params
+     */
+    private function qcdRefresh(string $type, array $params, bool $warm): void
+    {
+        try {
+            $id = 0;
+            $object = $params['object'] ?? null;
+
+            if (is_object($object) && isset($object->id)) {
+                $id = (int) $object->id;
+            } elseif (isset($params['id'])) {
+                $id = (int) $params['id'];
+            }
+
+            if ($id > 0) {
+                (new \QcdGone\QcdRedis\Service\ObjectCacheRefresher())->enqueue($type, $id, $warm);
+            }
+        } catch (\Throwable) {
+            // Swallow: the refresh is best-effort and must stay invisible.
+        }
     }
 
     /**

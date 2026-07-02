@@ -105,18 +105,21 @@ final class RedisConfigFactory
      * Used exclusively by the early-boot cache engine, before PrestaShop's own
      * Configuration and Db APIs are safe to call without recursing into Cache.
      */
-    public static function fromLegacyConfiguration(): RedisConfig
+    public static function fromLegacyConfiguration(int $idShop = 0, int $idShopGroup = 0): RedisConfig
     {
         if (self::$legacyReadInProgress) {
-            return self::fromValues([]);
+            // Re-entrant read: we cannot safely resolve the real configuration
+            // here. Refuse rather than returning DEFAULTS (which carry the 'ps_'
+            // prefix) and thereby splitting the keyspace.
+            throw new \RuntimeException('QCD Redis: re-entrant legacy configuration read.');
         }
 
         self::$legacyReadInProgress = true;
 
         try {
-            // Read every configuration key in a single round-trip instead of one
-            // SELECT per key. fromValues() fills any missing key from DEFAULTS.
-            $values = self::readLegacyMany(array_keys(self::DEFAULTS));
+            // Read every key in a single round-trip, honouring the current shop
+            // scope exactly like Configuration::get would.
+            $values = self::readLegacyMany(array_keys(self::DEFAULTS), $idShop, $idShopGroup);
         } finally {
             self::$legacyReadInProgress = false;
         }
@@ -180,35 +183,53 @@ final class RedisConfigFactory
     }
 
     /**
-     * Read several configuration values in a single query. Only keys present in
-     * the table are returned; callers fall back to defaults for the rest.
+     * Read several configuration values in a single query, honouring the current
+     * shop scope (shop-specific > shop-group > global), exactly like
+     * Configuration::get.
+     *
+     * IMPORTANT: this never falls back to DEFAULTS on a database failure. If the
+     * database cannot be reached it throws, so the caller degrades to a no-op
+     * cache instead of running under the default 'ps_' prefix (which would split
+     * the keyspace). DEFAULTS are only applied by fromValues() for keys that are
+     * genuinely absent from a reachable configuration table (fresh install).
      *
      * @param string[] $keys
      *
      * @return array<string, mixed>
+     *
+     * @throws \RuntimeException When the configuration table cannot be read.
      */
-    private static function readLegacyMany(array $keys): array
+    private static function readLegacyMany(array $keys, int $idShop, int $idShopGroup): array
     {
         if ($keys === []) {
             return [];
         }
 
-        try {
-            if (!self::hasLegacyDatabaseConstants()) {
-                return [];
-            }
-
-            $values = self::readLegacyManyWithMysqli($keys);
-
-            if ($values === null) {
-                $values = self::readLegacyManyWithPdo($keys);
-            }
-
-            return is_array($values) ? $values : [];
-        } catch (\Throwable) {
-            // Database not ready during early boot: fall back to defaults.
-            return [];
+        if (!self::hasLegacyDatabaseConstants()) {
+            throw new \RuntimeException('QCD Redis: database constants unavailable for configuration read.');
         }
+
+        $values = null;
+
+        try {
+            $values = self::readLegacyManyWithMysqli($keys, $idShop, $idShopGroup);
+        } catch (\Throwable) {
+            $values = null;
+        }
+
+        if ($values === null) {
+            try {
+                $values = self::readLegacyManyWithPdo($keys, $idShop, $idShopGroup);
+            } catch (\Throwable) {
+                $values = null;
+            }
+        }
+
+        if ($values === null) {
+            throw new \RuntimeException('QCD Redis: unable to read configuration from the database.');
+        }
+
+        return $values;
     }
 
     /**
@@ -216,7 +237,7 @@ final class RedisConfigFactory
      *
      * @return array<string, mixed>|null Null when mysqli is unusable (try PDO).
      */
-    private static function readLegacyManyWithMysqli(array $keys): ?array
+    private static function readLegacyManyWithMysqli(array $keys, int $idShop, int $idShopGroup): ?array
     {
         $connection = self::getLegacyMysqli();
 
@@ -236,10 +257,14 @@ final class RedisConfigFactory
         );
 
         $sql = sprintf(
-            'SELECT `name`, `value` FROM `%sconfiguration` WHERE `name` IN (%s)'
-            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL',
+            'SELECT `name`, `value`, `id_shop`, `id_shop_group` FROM `%sconfiguration`'
+            . ' WHERE `name` IN (%s)'
+            . ' AND (`id_shop` = %d OR `id_shop` IS NULL)'
+            . ' AND (`id_shop_group` = %d OR `id_shop_group` IS NULL)',
             $prefix,
-            implode(',', $escaped)
+            implode(',', $escaped),
+            $idShop,
+            $idShopGroup
         );
         $result = @$connection->query($sql);
 
@@ -247,17 +272,15 @@ final class RedisConfigFactory
             return null;
         }
 
-        $values = [];
+        $rows = [];
 
         while (is_array($row = $result->fetch_assoc())) {
-            if (array_key_exists('name', $row) && array_key_exists('value', $row)) {
-                $values[(string) $row['name']] = $row['value'];
-            }
+            $rows[] = $row;
         }
 
         $result->free();
 
-        return $values;
+        return self::resolveScopedRows($rows, $idShop, $idShopGroup);
     }
 
     /**
@@ -265,7 +288,7 @@ final class RedisConfigFactory
      *
      * @return array<string, mixed>|null Null when PDO is unusable.
      */
-    private static function readLegacyManyWithPdo(array $keys): ?array
+    private static function readLegacyManyWithPdo(array $keys, int $idShop, int $idShopGroup): ?array
     {
         $connection = self::getLegacyPdo();
         $prefix = self::getLegacyTablePrefix();
@@ -276,10 +299,14 @@ final class RedisConfigFactory
 
         $placeholders = implode(',', array_fill(0, count($keys), '?'));
         $sql = sprintf(
-            'SELECT `name`, `value` FROM `%sconfiguration` WHERE `name` IN (%s)'
-            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL',
+            'SELECT `name`, `value`, `id_shop`, `id_shop_group` FROM `%sconfiguration`'
+            . ' WHERE `name` IN (%s)'
+            . ' AND (`id_shop` = %d OR `id_shop` IS NULL)'
+            . ' AND (`id_shop_group` = %d OR `id_shop_group` IS NULL)',
             $prefix,
-            $placeholders
+            $placeholders,
+            $idShop,
+            $idShopGroup
         );
         $statement = $connection->prepare($sql);
 
@@ -291,15 +318,70 @@ final class RedisConfigFactory
             return null;
         }
 
-        $values = [];
+        $rows = $statement->fetchAll();
 
-        foreach ($statement->fetchAll() as $row) {
-            if (is_array($row) && array_key_exists('name', $row) && array_key_exists('value', $row)) {
-                $values[(string) $row['name']] = $row['value'];
+        return self::resolveScopedRows(is_array($rows) ? $rows : [], $idShop, $idShopGroup);
+    }
+
+    /**
+     * Reduce raw configuration rows to one value per key, choosing the most
+     * specific scope available (shop-specific > shop-group > global), mirroring
+     * PrestaShop's Configuration::get resolution.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     *
+     * @return array<string, mixed>
+     */
+    private static function resolveScopedRows(array $rows, int $idShop, int $idShopGroup): array
+    {
+        /** @var array<string, array{0:int,1:mixed}> $best */
+        $best = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row) || !array_key_exists('name', $row) || !array_key_exists('value', $row)) {
+                continue;
+            }
+
+            $rank = self::scopeRank($row['id_shop'] ?? null, $row['id_shop_group'] ?? null, $idShop, $idShopGroup);
+
+            if ($rank === 0) {
+                continue;
+            }
+
+            $name = (string) $row['name'];
+
+            if (!isset($best[$name]) || $rank > $best[$name][0]) {
+                $best[$name] = [$rank, $row['value']];
             }
         }
 
+        $values = [];
+
+        foreach ($best as $name => $pair) {
+            $values[$name] = $pair[1];
+        }
+
         return $values;
+    }
+
+    /**
+     * Specificity rank of a configuration row for the given context:
+     * 3 = shop-specific match, 2 = shop-group match, 1 = global, 0 = not applicable.
+     */
+    private static function scopeRank(mixed $rowShop, mixed $rowShopGroup, int $idShop, int $idShopGroup): int
+    {
+        $rowShop = $rowShop === null ? null : (int) $rowShop;
+        $rowShopGroup = $rowShopGroup === null ? null : (int) $rowShopGroup;
+
+        if ($rowShop !== null) {
+            return ($idShop > 0 && $rowShop === $idShop) ? 3 : 0;
+        }
+
+        if ($rowShopGroup !== null) {
+            return ($idShopGroup > 0 && $rowShopGroup === $idShopGroup) ? 2 : 0;
+        }
+
+        return 1;
     }
 
     private static function readLegacyWithMysqli(string $key): mixed
