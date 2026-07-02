@@ -1,0 +1,140 @@
+{# QCD Redis - Back office interface (Twig). #}
+{% extends '@PrestaShop/Admin/layout.html.twig' %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ assetsUrl }}css/qcdredis.css">
+<div class="qcd-redis" id="qcd-redis-app"
+     data-url-test="{{ path('qcdredis_admin_test_connection') }}"
+     data-url-stats="{{ path('qcdredis_admin_stats') }}"
+     data-url-diagnostics="{{ path('qcdredis_admin_diagnostics') }}"
+     data-url-benchmark="{{ path('qcdredis_admin_benchmark') }}"
+     data-url-export="{{ path('qcdredis_admin_export_csv') }}"
+     data-url-purge="{{ path('qcdredis_admin_purge') }}"
+     data-url-warmup-build="{{ path('qcdredis_admin_warmup_build') }}"
+     data-url-warmup-batch="{{ path('qcdredis_admin_warmup_batch') }}">
+
+    <div class="qcd-header">
+        <h2 class="qcd-title">QCD Redis <small>by 410 Gone</small></h2>
+        {% if overview.available %}
+            <span class="qcd-badge qcd-badge-ok">Redis online &middot; v{{ overview.version }}</span>
+        {% else %}
+            <span class="qcd-badge qcd-badge-error">Redis offline</span>
+        {% endif %}
+    </div>
+
+    <ul class="qcd-nav nav nav-tabs" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-qcd-tab="dashboard" href="#">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="connection" href="#">Connection</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="cache" href="#">Cache</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="purge" href="#">Purge</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="warmup" href="#">Warmup</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="statistics" href="#">Statistics</a></li>
+        <li class="nav-item"><a class="nav-link" data-qcd-tab="diagnostic" href="#">Diagnostic</a></li>
+    </ul>
+
+    <div class="qcd-panels">
+
+        {# ---------------- Dashboard ---------------- #}
+        <section class="qcd-panel active" data-qcd-panel="dashboard">
+            <div class="qcd-grid" id="qcd-dashboard-grid">
+                {% if overview.available %}
+                    {% set cards = {
+                        'version': 'Version', 'latency_ms': 'Latency (ms)',
+                        'used_memory_human': 'Used memory', 'free_memory': 'Free memory (bytes)',
+                        'keys': 'Keys', 'connected_clients': 'Clients',
+                        'hit_ratio': 'Hit ratio (%)', 'miss_ratio': 'Miss ratio (%)',
+                        'uptime_seconds': 'Uptime (s)', 'fragmentation_ratio': 'Fragmentation',
+                        'evicted_keys': 'Evictions', 'expired_keys': 'Expirations'
+                    } %}
+                    {% for key, label in cards %}
+                        <div class="qcd-card"><span class="qcd-metric" data-metric="{{ key }}">{{ overview[key] }}</span><span class="qcd-label">{{ label }}</span></div>
+                    {% endfor %}
+                {% else %}
+                    <p class="qcd-alert qcd-alert-error">Redis is not reachable. Check the Connection tab.</p>
+                {% endif %}
+            </div>
+            <button type="button" class="btn btn-outline-secondary qcd-action" data-qcd-refresh="dashboard">Refresh</button>
+        </section>
+
+        {# ---------------- Connection ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="connection">
+            {{ form_start(connectionForm) }}
+                {{ form_row(connectionForm.host) }}
+                {{ form_row(connectionForm.port) }}
+                {{ form_row(connectionForm.password) }}
+                {{ form_row(connectionForm.db) }}
+                {{ form_row(connectionForm.timeout) }}
+                {{ form_row(connectionForm.tls) }}
+                <div class="qcd-actions">
+                    <button type="button" class="btn btn-outline-secondary" id="qcd-test-connection">Test connection</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+                <p class="qcd-result" id="qcd-connection-result"></p>
+            {{ form_end(connectionForm) }}
+        </section>
+
+        {# ---------------- Cache ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="cache">
+            {{ form_start(cacheForm) }}
+                {{ form_row(cacheForm.enabled) }}
+                {{ form_row(cacheForm.ttl) }}
+                {{ form_row(cacheForm.prefix) }}
+                {{ form_row(cacheForm.compression) }}
+                {{ form_row(cacheForm.compression_auto) }}
+                {{ form_row(cacheForm.compression_threshold) }}
+                {{ form_row(cacheForm.serializer) }}
+                <div class="qcd-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+            {{ form_end(cacheForm) }}
+        </section>
+
+        {# ---------------- Purge ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="purge">
+            <div class="qcd-form">
+                <div class="qcd-actions">
+                    <button type="button" class="btn btn-danger" data-qcd-purge="all">Full purge</button>
+                    <button type="button" class="btn btn-outline-secondary" data-qcd-purge="expired">Report expired keys</button>
+                </div>
+                <div class="qcd-field"><label>Purge by prefix</label><input type="text" id="qcd-purge-prefix" placeholder="e.g. product_"><button type="button" class="btn btn-outline-secondary" data-qcd-purge="prefix">Purge prefix</button></div>
+                <div class="qcd-field"><label>Purge by tags (comma separated)</label><input type="text" id="qcd-purge-tags" placeholder="e.g. category,cms"><button type="button" class="btn btn-outline-secondary" data-qcd-purge="tags">Purge tags</button></div>
+                <p class="qcd-result" id="qcd-purge-result"></p>
+            </div>
+        </section>
+
+        {# ---------------- Warmup ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="warmup">
+            <div class="qcd-form">
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="home" checked> Home</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="categories" checked> Categories</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="products" checked> Products</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="cms" checked> CMS</label></div>
+                <div class="qcd-actions"><button type="button" class="btn btn-primary" id="qcd-warmup-start">Start warmup</button></div>
+                <div class="qcd-progress"><div class="qcd-progress-bar" id="qcd-warmup-bar">0%</div></div>
+                <p class="qcd-result" id="qcd-warmup-result"></p>
+            </div>
+        </section>
+
+        {# ---------------- Statistics ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="statistics">
+            <div class="qcd-actions">
+                <button type="button" class="btn btn-outline-secondary" data-qcd-refresh="statistics">Refresh</button>
+                <a class="btn btn-outline-secondary" id="qcd-export-csv" href="{{ path('qcdredis_admin_export_csv') }}">Export CSV</a>
+            </div>
+            <div id="qcd-stats-summary" class="qcd-grid"></div>
+            <h4>Heaviest keys</h4>
+            <table class="table qcd-table" id="qcd-heavy-keys"><thead><tr><th>Key</th><th>Bytes</th><th>TTL</th></tr></thead><tbody></tbody></table>
+        </section>
+
+        {# ---------------- Diagnostic ---------------- #}
+        <section class="qcd-panel" data-qcd-panel="diagnostic">
+            <div class="qcd-actions">
+                <button type="button" class="btn btn-outline-secondary" data-qcd-refresh="diagnostic">Run checks</button>
+                <button type="button" class="btn btn-outline-secondary" id="qcd-run-benchmark">Run benchmark</button>
+            </div>
+            <ul class="qcd-checks" id="qcd-diagnostic-list"></ul>
+            <div id="qcd-benchmark-result" class="qcd-grid"></div>
+        </section>
+
+    </div>
+</div>
+<script src="{{ assetsUrl }}js/qcdredis.js"></script>
+{% endblock %}

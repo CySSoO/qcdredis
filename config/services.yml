@@ -1,0 +1,22 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Configuration access (reads/writes through PrestaShop's Configuration service).
+    QcdGone\QcdRedis\Config\:
+        resource: '../src/Config/*'
+
+    # Redis services (statistics, diagnostics, purge, warmup, connection factory).
+    QcdGone\QcdRedis\Service\:
+        resource: '../src/Service/*'
+
+    # Symfony form types.
+    QcdGone\QcdRedis\Form\:
+        resource: '../src/Form/*'
+
+    # Admin controller (must be public and receive its container/service arguments).
+    QcdGone\QcdRedis\Controller\:
+        resource: '../src/Controller/*'
+        public: true

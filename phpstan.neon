@@ -1,0 +1,19 @@
+parameters:
+    level: max
+    phpVersion: 80200
+    paths:
+        - qcdredis.php
+        - src
+    # When analysing inside a real shop (modules/qcdredis), expose PrestaShop's
+    # own classes (Cache, Module, Tools, Configuration, Tab, ...) to PHPStan.
+    scanDirectories:
+        - ../../classes
+        - ../../src
+        - ../../vendor
+    bootstrapFiles:
+        - tests/phpstan-bootstrap.php
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # phpredis \Redis dynamic methods (rawCommand, scan by ref) are stubbed loosely.
+        - '#Call to an undefined method Redis::#'
