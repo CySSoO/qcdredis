@@ -14,7 +14,6 @@
 
 declare(strict_types=1);
 
-use QcdGone\QcdRedis\Cache\RedisConfigFactory;
 use QcdGone\QcdRedis\Install\Installer;
 
 if (!defined('_PS_VERSION_')) {
@@ -30,9 +29,6 @@ class Qcdredis extends Module
 {
     /** @var string Admin controller class name (without the "Controller" suffix). */
     public const ADMIN_CONTROLLER = 'AdminQcdRedis';
-
-    /** @var string[] Cache-clear hooks that should also flush Redis. */
-    private const CACHE_CLEAR_HOOKS = ['actionClearCache', 'actionClearSf2Cache', 'actionClearCompileCache'];
 
     /** @var Installer|null Cached installer so error state survives across calls. */
     private ?Installer $installer = null;
@@ -76,7 +72,7 @@ class Qcdredis extends Module
             return false;
         }
 
-        if (!parent::install() || !$this->registerHook(self::CACHE_CLEAR_HOOKS)) {
+        if (!parent::install()) {
             return false;
         }
 
@@ -106,32 +102,12 @@ class Qcdredis extends Module
     public function getContent(): void
     {
         Tools::redirectAdmin(
-            $this->context->link->getAdminLink(self::ADMIN_CONTROLLER)
+            $this->context->link->getAdminLink(
+                self::ADMIN_CONTROLLER,
+                true,
+                ['route' => 'qcdredis_admin_configure']
+            )
         );
-    }
-
-    /**
-     * Flush the Redis cache when PrestaShop clears its data cache.
-     */
-    public function hookActionClearCache(): void
-    {
-        $this->flushRedisCache();
-    }
-
-    /**
-     * Flush the Redis cache when PrestaShop clears its Symfony cache.
-     */
-    public function hookActionClearSf2Cache(): void
-    {
-        $this->flushRedisCache();
-    }
-
-    /**
-     * Flush the Redis cache when PrestaShop clears its compiled templates.
-     */
-    public function hookActionClearCompileCache(): void
-    {
-        $this->flushRedisCache();
     }
 
     /**
@@ -140,25 +116,6 @@ class Qcdredis extends Module
     public function getInstallerError(): string
     {
         return $this->getInstaller()->getLastError();
-    }
-
-    /**
-     * Flush the current shop's Redis namespace, if the option is enabled.
-     *
-     * Uses the active PrestaShop cache instance (our CacheRedis engine) so the
-     * flush is scoped to this shop and never breaks the ongoing clear operation.
-     */
-    private function flushRedisCache(): void
-    {
-        if (!RedisConfigFactory::fromLegacyConfiguration()->isFlushOnCacheClear()) {
-            return;
-        }
-
-        try {
-            Cache::getInstance()->flush();
-        } catch (\Throwable) {
-            // A cache-clear must never surface an error to the merchant.
-        }
     }
 
     /**

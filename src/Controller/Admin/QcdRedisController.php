@@ -217,7 +217,6 @@ final class QcdRedisController extends AbstractController
             'compression_auto' => (bool) $raw[RedisConfigFactory::KEY_COMPRESSION_AUTO],
             'compression_threshold' => (int) $raw[RedisConfigFactory::KEY_COMPRESSION_THRESHOLD],
             'serializer' => $raw[RedisConfigFactory::KEY_SERIALIZER],
-            'flush_on_clear' => (bool) $raw[RedisConfigFactory::KEY_FLUSH_ON_CLEAR],
         ];
     }
 }

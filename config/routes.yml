@@ -1,4 +1,8 @@
 # QCD Redis - Admin routes (Symfony).
+#
+# Every route maps to the QcdRedisController service and declares
+# _legacy_controller so PrestaShop attaches the admin security token and the
+# tab permission profile (class name AdminQcdRedis).
 
 qcdredis_admin_configure:
     path: /qcdredis/configure
@@ -6,7 +10,10 @@ qcdredis_admin_configure:
     defaults:
         _controller: 'QcdGone\QcdRedis\Controller\Admin\QcdRedisController::index'
         _legacy_controller: 'AdminQcdRedis'
-        _legacy_link: 'AdminQcdRedis'
+        _legacy_link:
+            - 'AdminQcdRedis'
+            - 'AdminQcdRedis:index'
+            - 'AdminQcdRedis:list'
 
 qcdredis_admin_test_connection:
     path: /qcdredis/test-connection

@@ -1,33 +1,43 @@
 /**
- * QCD Redis - Back office styles (complements Bootstrap).
+ * QCD Redis - Back office styles.
  *
  * @author    410 Gone
  * @copyright 410 Gone
  * @license   Proprietary
  */
 
-.qcd-redis { --qcd-ok: #2fb344; --qcd-warn: #f59f00; --qcd-err: #e03131; }
-.qcd-redis .qcd-title small { font-size: 60%; }
-
-/* Tab panels are toggled by qcdredis.js (Bootstrap JS is not required). */
+.qcd-redis { --qcd-ok: #2fb344; --qcd-warn: #f59f00; --qcd-err: #e03131; font-size: 14px; }
+.qcd-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.qcd-title { margin: 0; font-weight: 600; }
+.qcd-title small { color: #868e96; font-size: 60%; }
+.qcd-badge { padding: 4px 12px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; }
+.qcd-badge-ok { background: var(--qcd-ok); }
+.qcd-badge-error { background: var(--qcd-err); }
+.qcd-nav { margin-bottom: 20px; }
 .qcd-panel { display: none; }
 .qcd-panel.active { display: block; animation: qcd-fade .2s ease-in; }
 @keyframes qcd-fade { from { opacity: 0; } to { opacity: 1; } }
-
-/* Metric cards: rely on Bootstrap .card for the frame, style the figures only. */
-.qcd-redis .qcd-metric { font-size: 1.6rem; font-weight: 700; color: #1c7ed6; word-break: break-word; line-height: 1.2; }
-.qcd-redis .qcd-label { display: block; margin-top: .25rem; }
-
-/* Result lines under actions. */
-.qcd-redis .qcd-result { min-height: 1.2rem; font-weight: 600; }
-.qcd-redis .qcd-result.ok { color: var(--qcd-ok); }
-.qcd-redis .qcd-result.err { color: var(--qcd-err); }
-
-/* Diagnostic checks: coloured status dot. */
-.qcd-redis .qcd-checks { list-style: none; padding: 0; margin: 0; }
-.qcd-redis .qcd-check { display: flex; align-items: center; gap: .75rem; padding: .6rem .9rem; border-radius: .5rem; margin-bottom: .5rem; background: #f8f9fa; }
-.qcd-redis .qcd-check .dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; background: #adb5bd; }
-.qcd-redis .qcd-check.ok .dot { background: var(--qcd-ok); }
-.qcd-redis .qcd-check.warning .dot { background: var(--qcd-warn); }
-.qcd-redis .qcd-check.error .dot { background: var(--qcd-err); }
-.qcd-redis .qcd-check .label { font-weight: 600; min-width: 200px; }
+.qcd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.qcd-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.qcd-metric { display: block; font-size: 22px; font-weight: 700; color: #1c7ed6; word-break: break-word; }
+.qcd-label { display: block; color: #868e96; font-size: 12px; margin-top: 6px; }
+.qcd-form { max-width: 640px; }
+.qcd-field { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.qcd-field > label { width: 220px; font-weight: 600; margin: 0; }
+.qcd-field input[type="text"], .qcd-field input[type="number"], .qcd-field input[type="password"], .qcd-field select { flex: 1; padding: 8px; border: 1px solid #ced4da; border-radius: 8px; }
+.qcd-actions { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+.qcd-result { min-height: 20px; font-weight: 600; }
+.qcd-result.ok { color: var(--qcd-ok); }
+.qcd-result.err { color: var(--qcd-err); }
+.qcd-progress { background: #e9ecef; border-radius: 8px; overflow: hidden; height: 24px; margin: 12px 0; }
+.qcd-progress-bar { background: var(--qcd-ok); color: #fff; text-align: center; line-height: 24px; width: 0; transition: width .3s ease; font-size: 12px; }
+.qcd-checks { list-style: none; padding: 0; }
+.qcd-check { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; background: #f8f9fa; }
+.qcd-check .dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+.qcd-check.ok .dot { background: var(--qcd-ok); }
+.qcd-check.warning .dot { background: var(--qcd-warn); }
+.qcd-check.error .dot { background: var(--qcd-err); }
+.qcd-check .label { font-weight: 600; width: 200px; }
+.qcd-table { width: 100%; background: #fff; }
+.qcd-alert { padding: 12px 16px; border-radius: 8px; }
+.qcd-alert-error { background: #fff5f5; color: var(--qcd-err); border: 1px solid #ffc9c9; }

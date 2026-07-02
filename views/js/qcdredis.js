@@ -127,14 +127,10 @@
             var fields = { hits: 'Hits', misses: 'Misses', hit_ratio: 'Hit %', keys: 'Keys', latency_ms: 'Latency ms', used_memory_human: 'Memory' };
             Object.keys(fields).forEach(function (k) {
                 summary.insertAdjacentHTML('beforeend',
-                    '<div class="col-6 col-md-3"><div class="card text-center h-100 qcd-card"><div class="card-body">' +
-                    '<span class="qcd-metric d-block">' + (res.overview[k] !== undefined ? res.overview[k] : '-') + '</span>' +
-                    '<span class="qcd-label text-muted small">' + fields[k] + '</span></div></div></div>');
+                    '<div class="qcd-card"><span class="qcd-metric">' + (res.overview[k] !== undefined ? res.overview[k] : '-') + '</span><span class="qcd-label">' + fields[k] + '</span></div>');
             });
             summary.insertAdjacentHTML('beforeend',
-                '<div class="col-6 col-md-3"><div class="card text-center h-100 qcd-card"><div class="card-body">' +
-                '<span class="qcd-metric d-block">' + res.average_ttl + '</span>' +
-                '<span class="qcd-label text-muted small">Avg TTL</span></div></div></div>');
+                '<div class="qcd-card"><span class="qcd-metric">' + res.average_ttl + '</span><span class="qcd-label">Avg TTL</span></div>');
             var body = document.querySelector('#qcd-heavy-keys tbody');
             body.innerHTML = '';
             (res.heavy_keys || []).forEach(function (row) {
@@ -218,4 +214,14 @@
     if (benchBtn) {
         benchBtn.addEventListener('click', function () {
             var box = document.getElementById('qcd-benchmark-result');
-    
+            box.innerHTML = '<p>Running 1000 ops per operation...</p>';
+            post('benchmark', {}).then(function (res) {
+                box.innerHTML = '';
+                Object.keys(res.benchmark || {}).forEach(function (op) {
+                    box.insertAdjacentHTML('beforeend',
+                        '<div class="qcd-card"><span class="qcd-metric">' + res.benchmark[op] + '</span><span class="qcd-label">' + op + ' (ms/1k)</span></div>');
+                });
+            });
+        });
+    }
+})();

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>qcdredis</name>
+    <displayName><![CDATA[QCD Redis]]></displayName>
+    <version><![CDATA[1.0.0]]></version>
+    <description><![CDATA[Replace the PrestaShop cache engine with Redis. Native, reversible, without overrides.]]></description>
+    <author><![CDATA[410 Gone]]></author>
+    <tab><![CDATA[administration]]></tab>
+	<confirmUninstall><![CDATA[Are you sure? Uninstalling will restore the previous cache engine.]]></confirmUninstall>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+</module>

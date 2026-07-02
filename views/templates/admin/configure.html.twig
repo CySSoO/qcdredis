@@ -1,4 +1,4 @@
-{# QCD Redis - Back office interface (Twig, Bootstrap). #}
+{# QCD Redis - Back office interface (Twig). #}
 {% extends '@PrestaShop/Admin/layout.html.twig' %}
 
 {% block content %}
@@ -13,16 +13,16 @@
      data-url-warmup-build="{{ path('qcdredis_admin_warmup_build') }}"
      data-url-warmup-batch="{{ path('qcdredis_admin_warmup_batch') }}">
 
-    <div class="d-flex align-items-center justify-content-between mb-3 qcd-header">
-        <h2 class="qcd-title mb-0">QCD Redis <small class="text-muted">by 410 Gone</small></h2>
+    <div class="qcd-header">
+        <h2 class="qcd-title">QCD Redis <small>by 410 Gone</small></h2>
         {% if overview.available %}
-            <span class="badge bg-success qcd-badge">Redis online &middot; v{{ overview.version }}</span>
+            <span class="qcd-badge qcd-badge-ok">Redis online &middot; v{{ overview.version }}</span>
         {% else %}
-            <span class="badge bg-danger qcd-badge">Redis offline</span>
+            <span class="qcd-badge qcd-badge-error">Redis offline</span>
         {% endif %}
     </div>
 
-    <ul class="nav nav-tabs qcd-nav mb-3" role="tablist">
+    <ul class="qcd-nav nav nav-tabs" role="tablist">
         <li class="nav-item"><a class="nav-link active" data-qcd-tab="dashboard" href="#">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" data-qcd-tab="connection" href="#">Connection</a></li>
         <li class="nav-item"><a class="nav-link" data-qcd-tab="cache" href="#">Cache</a></li>
@@ -36,172 +36,102 @@
 
         {# ---------------- Dashboard ---------------- #}
         <section class="qcd-panel active" data-qcd-panel="dashboard">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="material-icons align-middle">dashboard</i> Overview</span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-qcd-refresh="dashboard">
-                        <i class="material-icons align-middle">refresh</i> Refresh
-                    </button>
-                </div>
-                <div class="card-body">
-                    {% if overview.available %}
-                        <div class="row g-3 qcd-grid" id="qcd-dashboard-grid">
-                            {% set cards = {
-                                'version': 'Version', 'latency_ms': 'Latency (ms)',
-                                'used_memory_human': 'Used memory', 'free_memory': 'Free memory (bytes)',
-                                'keys': 'Keys', 'connected_clients': 'Clients',
-                                'hit_ratio': 'Hit ratio (%)', 'miss_ratio': 'Miss ratio (%)',
-                                'uptime_seconds': 'Uptime (s)', 'fragmentation_ratio': 'Fragmentation',
-                                'evicted_keys': 'Evictions', 'expired_keys': 'Expirations'
-                            } %}
-                            {% for key, label in cards %}
-                                <div class="col-6 col-md-3">
-                                    <div class="card text-center h-100 qcd-card">
-                                        <div class="card-body">
-                                            <span class="qcd-metric d-block" data-metric="{{ key }}">{{ overview[key] }}</span>
-                                            <span class="qcd-label text-muted small">{{ label }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="alert alert-danger mb-0">Redis is not reachable. Check the Connection tab.</div>
-                    {% endif %}
-                </div>
+            <div class="qcd-grid" id="qcd-dashboard-grid">
+                {% if overview.available %}
+                    {% set cards = {
+                        'version': 'Version', 'latency_ms': 'Latency (ms)',
+                        'used_memory_human': 'Used memory', 'free_memory': 'Free memory (bytes)',
+                        'keys': 'Keys', 'connected_clients': 'Clients',
+                        'hit_ratio': 'Hit ratio (%)', 'miss_ratio': 'Miss ratio (%)',
+                        'uptime_seconds': 'Uptime (s)', 'fragmentation_ratio': 'Fragmentation',
+                        'evicted_keys': 'Evictions', 'expired_keys': 'Expirations'
+                    } %}
+                    {% for key, label in cards %}
+                        <div class="qcd-card"><span class="qcd-metric" data-metric="{{ key }}">{{ overview[key] }}</span><span class="qcd-label">{{ label }}</span></div>
+                    {% endfor %}
+                {% else %}
+                    <p class="qcd-alert qcd-alert-error">Redis is not reachable. Check the Connection tab.</p>
+                {% endif %}
             </div>
+            <button type="button" class="btn btn-outline-secondary qcd-action" data-qcd-refresh="dashboard">Refresh</button>
         </section>
 
         {# ---------------- Connection ---------------- #}
         <section class="qcd-panel" data-qcd-panel="connection">
-            <div class="card">
-                <div class="card-header"><i class="material-icons align-middle">settings_ethernet</i> Connection</div>
-                <div class="card-body">
-                    {{ form_start(connectionForm) }}
-                        <div class="row">
-                            <div class="col-md-6">{{ form_row(connectionForm.host) }}</div>
-                            <div class="col-md-6">{{ form_row(connectionForm.port) }}</div>
-                            <div class="col-md-6">{{ form_row(connectionForm.password) }}</div>
-                            <div class="col-md-6">{{ form_row(connectionForm.db) }}</div>
-                            <div class="col-md-6">{{ form_row(connectionForm.timeout) }}</div>
-                            <div class="col-md-6">{{ form_row(connectionForm.tls) }}</div>
-                        </div>
-                        <div class="qcd-actions d-flex gap-2 mt-2">
-                            <button type="button" class="btn btn-outline-secondary" id="qcd-test-connection">Test connection</button>
-                            <button type="submit" class="btn btn-primary">Save</button>
-                        </div>
-                        <p class="qcd-result mt-2 mb-0" id="qcd-connection-result"></p>
-                    {{ form_end(connectionForm) }}
+            {{ form_start(connectionForm) }}
+                {{ form_row(connectionForm.host) }}
+                {{ form_row(connectionForm.port) }}
+                {{ form_row(connectionForm.password) }}
+                {{ form_row(connectionForm.db) }}
+                {{ form_row(connectionForm.timeout) }}
+                {{ form_row(connectionForm.tls) }}
+                <div class="qcd-actions">
+                    <button type="button" class="btn btn-outline-secondary" id="qcd-test-connection">Test connection</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
                 </div>
-            </div>
+                <p class="qcd-result" id="qcd-connection-result"></p>
+            {{ form_end(connectionForm) }}
         </section>
 
         {# ---------------- Cache ---------------- #}
         <section class="qcd-panel" data-qcd-panel="cache">
-            <div class="card">
-                <div class="card-header"><i class="material-icons align-middle">memory</i> Cache</div>
-                <div class="card-body">
-                    {{ form_start(cacheForm) }}
-                        <div class="row">
-                            <div class="col-md-6">{{ form_row(cacheForm.enabled) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.ttl) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.prefix) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.serializer) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.compression) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.compression_auto) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.compression_threshold) }}</div>
-                            <div class="col-md-6">{{ form_row(cacheForm.flush_on_clear) }}</div>
-                        </div>
-                        <div class="qcd-actions mt-2"><button type="submit" class="btn btn-primary">Save</button></div>
-                    {{ form_end(cacheForm) }}
-                </div>
-            </div>
+            {{ form_start(cacheForm) }}
+                {{ form_row(cacheForm.enabled) }}
+                {{ form_row(cacheForm.ttl) }}
+                {{ form_row(cacheForm.prefix) }}
+                {{ form_row(cacheForm.compression) }}
+                {{ form_row(cacheForm.compression_auto) }}
+                {{ form_row(cacheForm.compression_threshold) }}
+                {{ form_row(cacheForm.serializer) }}
+                <div class="qcd-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+            {{ form_end(cacheForm) }}
         </section>
 
         {# ---------------- Purge ---------------- #}
         <section class="qcd-panel" data-qcd-panel="purge">
-            <div class="card">
-                <div class="card-header"><i class="material-icons align-middle">delete_sweep</i> Purge</div>
-                <div class="card-body">
-                    <div class="qcd-actions d-flex gap-2 mb-3">
-                        <button type="button" class="btn btn-danger" data-qcd-purge="all">Full purge</button>
-                        <button type="button" class="btn btn-outline-secondary" data-qcd-purge="expired">Report expired keys</button>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Purge by prefix</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="qcd-purge-prefix" placeholder="e.g. product_">
-                            <button type="button" class="btn btn-outline-secondary" data-qcd-purge="prefix">Purge prefix</button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Purge by tags (comma separated)</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="qcd-purge-tags" placeholder="e.g. category,cms">
-                            <button type="button" class="btn btn-outline-secondary" data-qcd-purge="tags">Purge tags</button>
-                        </div>
-                    </div>
-                    <p class="qcd-result mb-0" id="qcd-purge-result"></p>
+            <div class="qcd-form">
+                <div class="qcd-actions">
+                    <button type="button" class="btn btn-danger" data-qcd-purge="all">Full purge</button>
+                    <button type="button" class="btn btn-outline-secondary" data-qcd-purge="expired">Report expired keys</button>
                 </div>
+                <div class="qcd-field"><label>Purge by prefix</label><input type="text" id="qcd-purge-prefix" placeholder="e.g. product_"><button type="button" class="btn btn-outline-secondary" data-qcd-purge="prefix">Purge prefix</button></div>
+                <div class="qcd-field"><label>Purge by tags (comma separated)</label><input type="text" id="qcd-purge-tags" placeholder="e.g. category,cms"><button type="button" class="btn btn-outline-secondary" data-qcd-purge="tags">Purge tags</button></div>
+                <p class="qcd-result" id="qcd-purge-result"></p>
             </div>
         </section>
 
         {# ---------------- Warmup ---------------- #}
         <section class="qcd-panel" data-qcd-panel="warmup">
-            <div class="card">
-                <div class="card-header"><i class="material-icons align-middle">local_fire_department</i> Warmup</div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-check form-check-inline"><input type="checkbox" class="form-check-input qcd-warmup-type" value="home" checked> Home</label>
-                        <label class="form-check form-check-inline"><input type="checkbox" class="form-check-input qcd-warmup-type" value="categories" checked> Categories</label>
-                        <label class="form-check form-check-inline"><input type="checkbox" class="form-check-input qcd-warmup-type" value="products" checked> Products</label>
-                        <label class="form-check form-check-inline"><input type="checkbox" class="form-check-input qcd-warmup-type" value="cms" checked> CMS</label>
-                    </div>
-                    <div class="qcd-actions mb-3"><button type="button" class="btn btn-primary" id="qcd-warmup-start">Start warmup</button></div>
-                    <div class="progress qcd-progress" style="height: 24px;">
-                        <div class="progress-bar bg-success qcd-progress-bar" id="qcd-warmup-bar" role="progressbar" style="width: 0;">0%</div>
-                    </div>
-                    <p class="qcd-result mt-2 mb-0" id="qcd-warmup-result"></p>
-                </div>
+            <div class="qcd-form">
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="home" checked> Home</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="categories" checked> Categories</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="products" checked> Products</label></div>
+                <div class="qcd-field"><label><input type="checkbox" class="qcd-warmup-type" value="cms" checked> CMS</label></div>
+                <div class="qcd-actions"><button type="button" class="btn btn-primary" id="qcd-warmup-start">Start warmup</button></div>
+                <div class="qcd-progress"><div class="qcd-progress-bar" id="qcd-warmup-bar">0%</div></div>
+                <p class="qcd-result" id="qcd-warmup-result"></p>
             </div>
         </section>
 
         {# ---------------- Statistics ---------------- #}
         <section class="qcd-panel" data-qcd-panel="statistics">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="material-icons align-middle">insights</i> Statistics</span>
-                    <span class="qcd-actions d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-qcd-refresh="statistics">Refresh</button>
-                        <a class="btn btn-sm btn-outline-secondary" id="qcd-export-csv" href="{{ path('qcdredis_admin_export_csv') }}">Export CSV</a>
-                    </span>
-                </div>
-                <div class="card-body">
-                    <div id="qcd-stats-summary" class="row g-3 qcd-grid mb-3"></div>
-                    <h5>Heaviest keys</h5>
-                    <table class="table table-striped table-hover qcd-table" id="qcd-heavy-keys">
-                        <thead><tr><th>Key</th><th>Bytes</th><th>TTL</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+            <div class="qcd-actions">
+                <button type="button" class="btn btn-outline-secondary" data-qcd-refresh="statistics">Refresh</button>
+                <a class="btn btn-outline-secondary" id="qcd-export-csv" href="{{ path('qcdredis_admin_export_csv') }}">Export CSV</a>
             </div>
+            <div id="qcd-stats-summary" class="qcd-grid"></div>
+            <h4>Heaviest keys</h4>
+            <table class="table qcd-table" id="qcd-heavy-keys"><thead><tr><th>Key</th><th>Bytes</th><th>TTL</th></tr></thead><tbody></tbody></table>
         </section>
 
         {# ---------------- Diagnostic ---------------- #}
         <section class="qcd-panel" data-qcd-panel="diagnostic">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="material-icons align-middle">health_and_safety</i> Diagnostic</span>
-                    <span class="qcd-actions d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" data-qcd-refresh="diagnostic">Run checks</button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="qcd-run-benchmark">Run benchmark</button>
-                    </span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group qcd-checks mb-3" id="qcd-diagnostic-list"></ul>
-                    <div id="qcd-benchmark-result" class="row g-3 qcd-grid"></div>
-                </div>
+            <div class="qcd-actions">
+                <button type="button" class="btn btn-outline-secondary" data-qcd-refresh="diagnostic">Run checks</button>
+                <button type="button" class="btn btn-outline-secondary" id="qcd-run-benchmark">Run benchmark</button>
             </div>
+            <ul class="qcd-checks" id="qcd-diagnostic-list"></ul>
+            <div id="qcd-benchmark-result" class="qcd-grid"></div>
         </section>
 
     </div>

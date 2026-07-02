@@ -14,6 +14,14 @@ namespace QcdGone\QcdRedis\Cache;
 /**
  * Builds {@see RedisConfig} value objects and owns the mapping to PrestaShop
  * configuration keys and their defaults.
+ *
+ * Two entry points exist on purpose:
+ *  - {@see fromValues()} for the Symfony layer, which reads values through the
+ *    ConfigurationInterface service and passes them here;
+ *  - {@see fromLegacyConfiguration()} for the cache engine, which boots before
+ *    the container exists and must therefore read the global Configuration
+ *    class directly. This is the only sanctioned static access in the engine
+ *    path.
  */
 final class RedisConfigFactory
 {
@@ -33,7 +41,6 @@ final class RedisConfigFactory
     public const KEY_COMPRESSION_AUTO = 'QCDREDIS_COMPRESSION_AUTO';
     public const KEY_COMPRESSION_THRESHOLD = 'QCDREDIS_COMPRESSION_THRESHOLD';
     public const KEY_SERIALIZER = 'QCDREDIS_SERIALIZER';
-    public const KEY_FLUSH_ON_CLEAR = 'QCDREDIS_FLUSH_ON_CLEAR';
 
     // Restore points.
     public const KEY_PREVIOUS_CACHE = 'QCDREDIS_PREVIOUS_CACHE';
@@ -54,8 +61,17 @@ final class RedisConfigFactory
         self::KEY_COMPRESSION_AUTO => true,
         self::KEY_COMPRESSION_THRESHOLD => 1024,
         self::KEY_SERIALIZER => RedisConfig::SERIALIZER_PHP,
-        self::KEY_FLUSH_ON_CLEAR => true,
     ];
+
+    private static bool $legacyReadInProgress = false;
+
+    private static bool $legacyMysqliInitialized = false;
+
+    private static ?object $legacyMysqli = null;
+
+    private static bool $legacyPdoInitialized = false;
+
+    private static ?\PDO $legacyPdo = null;
 
     /**
      * Build a config from an associative array keyed by the QCDREDIS_* keys.
@@ -81,20 +97,29 @@ final class RedisConfigFactory
             (bool) $read(self::KEY_COMPRESSION_AUTO),
             (int) $read(self::KEY_COMPRESSION_THRESHOLD),
             (string) $read(self::KEY_SERIALIZER),
-            (bool) $read(self::KEY_FLUSH_ON_CLEAR),
         );
     }
 
     /**
-     * Build a config by reading the global PrestaShop Configuration class.
-     * Used exclusively by the early-boot cache engine.
+     * Build a config by reading the PrestaShop configuration table directly.
+     * Used exclusively by the early-boot cache engine, before PrestaShop's own
+     * Configuration and Db APIs are safe to call without recursing into Cache.
      */
     public static function fromLegacyConfiguration(): RedisConfig
     {
+        if (self::$legacyReadInProgress) {
+            return self::fromValues([]);
+        }
+
+        self::$legacyReadInProgress = true;
         $values = [];
 
-        foreach (array_keys(self::DEFAULTS) as $key) {
-            $values[$key] = self::readLegacy($key);
+        try {
+            foreach (array_keys(self::DEFAULTS) as $key) {
+                $values[$key] = self::readLegacy($key);
+            }
+        } finally {
+            self::$legacyReadInProgress = false;
         }
 
         return self::fromValues($values);
@@ -119,18 +144,184 @@ final class RedisConfigFactory
     }
 
     /**
-     * Read a single value from the global Configuration class, defensively.
+     * Read a single value from the configuration table, defensively.
      */
     private static function readLegacy(string $key): mixed
     {
         try {
-            if (class_exists('Configuration', false) && \Configuration::hasKey($key)) {
-                return \Configuration::get($key);
+            if (!self::hasLegacyDatabaseConstants()) {
+                return self::DEFAULTS[$key] ?? null;
+            }
+
+            $value = self::readLegacyWithMysqli($key);
+
+            if ($value === false) {
+                $value = self::readLegacyWithPdo($key);
+            }
+
+            if ($value !== false) {
+                return $value;
             }
         } catch (\Throwable) {
             // Database not ready during early boot: fall back to defaults.
         }
 
         return self::DEFAULTS[$key] ?? null;
+    }
+
+    private static function readLegacyWithMysqli(string $key): mixed
+    {
+        $connection = self::getLegacyMysqli();
+
+        if (!$connection instanceof \mysqli) {
+            return false;
+        }
+
+        $prefix = self::getLegacyTablePrefix();
+
+        if ($prefix === null) {
+            return false;
+        }
+
+        $sql = sprintf(
+            'SELECT `value` FROM `%sconfiguration` WHERE `name` = \'%s\''
+            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL'
+            . ' ORDER BY `id_shop` DESC, `id_shop_group` DESC LIMIT 1',
+            $prefix,
+            $connection->real_escape_string($key)
+        );
+        $result = @$connection->query($sql);
+
+        if (!$result instanceof \mysqli_result) {
+            return false;
+        }
+
+        $row = $result->fetch_assoc();
+        $result->free();
+
+        return is_array($row) && array_key_exists('value', $row) ? $row['value'] : false;
+    }
+
+    private static function readLegacyWithPdo(string $key): mixed
+    {
+        $connection = self::getLegacyPdo();
+        $prefix = self::getLegacyTablePrefix();
+
+        if (!$connection instanceof \PDO || $prefix === null) {
+            return false;
+        }
+
+        $sql = sprintf(
+            'SELECT `value` FROM `%sconfiguration` WHERE `name` = :name'
+            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL'
+            . ' ORDER BY `id_shop` DESC, `id_shop_group` DESC LIMIT 1',
+            $prefix
+        );
+        $statement = $connection->prepare($sql);
+
+        if (!$statement) {
+            return false;
+        }
+
+        $statement->bindValue(':name', $key);
+
+        if (!$statement->execute()) {
+            return false;
+        }
+
+        $value = $statement->fetchColumn();
+
+        return $value !== false ? $value : false;
+    }
+
+    private static function getLegacyMysqli(): ?object
+    {
+        if (self::$legacyMysqliInitialized) {
+            return self::$legacyMysqli;
+        }
+
+        self::$legacyMysqliInitialized = true;
+
+        if (!function_exists('mysqli_init')) {
+            return null;
+        }
+
+        [$host, $port] = self::getLegacyDatabaseHostAndPort();
+        $connection = @mysqli_init();
+
+        if (!$connection instanceof \mysqli) {
+            return null;
+        }
+
+        @$connection->options(\MYSQLI_OPT_CONNECT_TIMEOUT, 1);
+
+        if (!@$connection->real_connect($host, _DB_USER_, _DB_PASSWD_, _DB_NAME_, $port)) {
+            return null;
+        }
+
+        @$connection->set_charset('utf8mb4');
+        self::$legacyMysqli = $connection;
+
+        return self::$legacyMysqli;
+    }
+
+    private static function getLegacyPdo(): ?\PDO
+    {
+        if (self::$legacyPdoInitialized) {
+            return self::$legacyPdo;
+        }
+
+        self::$legacyPdoInitialized = true;
+
+        if (!class_exists(\PDO::class) || !in_array('mysql', \PDO::getAvailableDrivers(), true)) {
+            return null;
+        }
+
+        [$host, $port] = self::getLegacyDatabaseHostAndPort();
+        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, _DB_NAME_);
+
+        try {
+            self::$legacyPdo = new \PDO($dsn, _DB_USER_, _DB_PASSWD_, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                \PDO::ATTR_TIMEOUT => 1,
+            ]);
+        } catch (\Throwable) {
+            self::$legacyPdo = null;
+        }
+
+        return self::$legacyPdo;
+    }
+
+    /**
+     * @return array{0:string,1:int}
+     */
+    private static function getLegacyDatabaseHostAndPort(): array
+    {
+        $host = (string) _DB_SERVER_;
+        $port = 3306;
+
+        if (preg_match('/^([^:]+):(\d+)$/', $host, $matches)) {
+            $host = $matches[1];
+            $port = (int) $matches[2];
+        }
+
+        return [$host, $port];
+    }
+
+    private static function hasLegacyDatabaseConstants(): bool
+    {
+        return defined('_DB_SERVER_')
+            && defined('_DB_USER_')
+            && defined('_DB_PASSWD_')
+            && defined('_DB_NAME_')
+            && defined('_DB_PREFIX_');
+    }
+
+    private static function getLegacyTablePrefix(): ?string
+    {
+        $prefix = (string) _DB_PREFIX_;
+
+        return preg_match('/^[A-Za-z0-9_]*$/', $prefix) ? $prefix : null;
     }
 }
