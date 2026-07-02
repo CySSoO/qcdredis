@@ -56,6 +56,10 @@ final class CacheSettingsType extends AbstractType
                 'label' => 'Compression threshold (bytes)',
                 'constraints' => [new Assert\GreaterThanOrEqual(0)],
             ])
+            ->add('flush_on_clear', CheckboxType::class, [
+                'label' => 'Also flush Redis when PrestaShop clears its cache',
+                'required' => false,
+            ])
             ->add('serializer', ChoiceType::class, [
                 'label' => 'Serializer',
                 'choices' => [

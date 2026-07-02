@@ -14,14 +14,6 @@ namespace QcdGone\QcdRedis\Cache;
 /**
  * Builds {@see RedisConfig} value objects and owns the mapping to PrestaShop
  * configuration keys and their defaults.
- *
- * Two entry points exist on purpose:
- *  - {@see fromValues()} for the Symfony layer, which reads values through the
- *    ConfigurationInterface service and passes them here;
- *  - {@see fromLegacyConfiguration()} for the cache engine, which boots before
- *    the container exists and must therefore read the global Configuration
- *    class directly. This is the only sanctioned static access in the engine
- *    path.
  */
 final class RedisConfigFactory
 {
@@ -41,6 +33,7 @@ final class RedisConfigFactory
     public const KEY_COMPRESSION_AUTO = 'QCDREDIS_COMPRESSION_AUTO';
     public const KEY_COMPRESSION_THRESHOLD = 'QCDREDIS_COMPRESSION_THRESHOLD';
     public const KEY_SERIALIZER = 'QCDREDIS_SERIALIZER';
+    public const KEY_FLUSH_ON_CLEAR = 'QCDREDIS_FLUSH_ON_CLEAR';
 
     // Restore points.
     public const KEY_PREVIOUS_CACHE = 'QCDREDIS_PREVIOUS_CACHE';
@@ -61,6 +54,7 @@ final class RedisConfigFactory
         self::KEY_COMPRESSION_AUTO => true,
         self::KEY_COMPRESSION_THRESHOLD => 1024,
         self::KEY_SERIALIZER => RedisConfig::SERIALIZER_PHP,
+        self::KEY_FLUSH_ON_CLEAR => true,
     ];
 
     /**
@@ -87,6 +81,7 @@ final class RedisConfigFactory
             (bool) $read(self::KEY_COMPRESSION_AUTO),
             (int) $read(self::KEY_COMPRESSION_THRESHOLD),
             (string) $read(self::KEY_SERIALIZER),
+            (bool) $read(self::KEY_FLUSH_ON_CLEAR),
         );
     }
 

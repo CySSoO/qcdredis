@@ -37,6 +37,7 @@ final class RedisConfig
         private readonly bool $compressionAuto = true,
         private readonly int $compressionThreshold = 1024,
         private readonly string $serializer = self::SERIALIZER_PHP,
+        private readonly bool $flushOnCacheClear = true,
     ) {
     }
 
@@ -105,6 +106,11 @@ final class RedisConfig
         return in_array($this->serializer, self::availableSerializers(), true)
             ? $this->serializer
             : self::SERIALIZER_PHP;
+    }
+
+    public function isFlushOnCacheClear(): bool
+    {
+        return $this->flushOnCacheClear;
     }
 
     /**

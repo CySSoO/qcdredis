@@ -50,7 +50,7 @@ final class ConfigurationUpdater
     /**
      * Persist cache behaviour settings.
      *
-     * @param array{enabled:bool,ttl:int,prefix:string,compression:bool,compression_auto:bool,compression_threshold:int,serializer:string} $data
+     * @param array{enabled:bool,ttl:int,prefix:string,compression:bool,compression_auto:bool,compression_threshold:int,serializer:string,flush_on_clear:bool} $data
      */
     public function saveCache(array $data): void
     {
@@ -61,5 +61,6 @@ final class ConfigurationUpdater
         $this->configuration->set(RedisConfigFactory::KEY_COMPRESSION_AUTO, (int) $data['compression_auto']);
         $this->configuration->set(RedisConfigFactory::KEY_COMPRESSION_THRESHOLD, max(0, $data['compression_threshold']));
         $this->configuration->set(RedisConfigFactory::KEY_SERIALIZER, $data['serializer']);
+        $this->configuration->set(RedisConfigFactory::KEY_FLUSH_ON_CLEAR, (int) $data['flush_on_clear']);
     }
 }

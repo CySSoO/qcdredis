@@ -4,20 +4,18 @@ services:
         autoconfigure: true
         public: false
 
-    # Configuration access (reads/writes through PrestaShop's Configuration service).
-    QcdGone\QcdRedis\Config\:
-        resource: '../src/Config/*'
+    QcdGone\QcdRedis\Config\ConfigurationProvider: ~
+    QcdGone\QcdRedis\Config\ConfigurationUpdater: ~
 
-    # Redis services (statistics, diagnostics, purge, warmup, connection factory).
-    QcdGone\QcdRedis\Service\:
-        resource: '../src/Service/*'
+    QcdGone\QcdRedis\Service\CachePurger: ~
+    QcdGone\QcdRedis\Service\CacheWarmer: ~
+    QcdGone\QcdRedis\Service\DiagnosticsRunner: ~
+    QcdGone\QcdRedis\Service\RedisConnectionFactory: ~
+    QcdGone\QcdRedis\Service\StatisticsProvider: ~
 
-    # Symfony form types.
-    QcdGone\QcdRedis\Form\:
-        resource: '../src/Form/*'
+    QcdGone\QcdRedis\Form\CacheSettingsType: ~
+    QcdGone\QcdRedis\Form\ConnectionType: ~
 
-    # Admin controller (must be public and receive its container/service arguments).
-    QcdGone\QcdRedis\Controller\:
-        resource: '../src/Controller/*'
+    QcdGone\QcdRedis\Controller\Admin\QcdRedisController:
         public: true
         tags: ['controller.service_arguments']

@@ -38,17 +38,34 @@ class QcdRedisCache extends \Cache
 
     private string $prefix;
 
+    private static bool $isConstructing = false;
+
     public function __construct()
     {
-        $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
-        $this->qcdConnection = new RedisConnection($this->qcdConfig);
-        $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
+        if (self::$isConstructing) {
+            $this->qcdConfig = RedisConfigFactory::fromValues([]);
+            $this->qcdConnection = new RedisConnection($this->qcdConfig);
+            $this->prefix = $this->qcdConfig->getKeyPrefix(0);
+            $this->keys = [];
 
-        $this->is_connected = $this->qcdConnection->isAvailable();
+            return;
+        }
 
-        if ($this->is_connected) {
-            $stored = $this->readKeysIndex();
-            $this->keys = is_array($stored) ? $stored : [];
+        self::$isConstructing = true;
+
+        try {
+            $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
+            $this->qcdConnection = new RedisConnection($this->qcdConfig);
+            $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
+
+            $this->is_connected = $this->qcdConnection->isAvailable();
+
+            if ($this->is_connected) {
+                $stored = $this->readKeysIndex();
+                $this->keys = is_array($stored) ? $stored : [];
+            }
+        } finally {
+            self::$isConstructing = false;
         }
     }
 
