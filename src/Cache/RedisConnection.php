@@ -101,16 +101,17 @@ final class RedisConnection
     {
         try {
             return $callback($this->getClient());
-        } catch (\RedisException $e) {
+        } catch (\RedisException) {
+            // Connection dropped mid-command: fall through to a single reconnect.
             $this->connected = false;
+        }
 
-            try {
-                return $callback($this->connect());
-            } catch (\Throwable $retry) {
-                $this->lastError = $retry->getMessage();
+        try {
+            return $callback($this->connect());
+        } catch (\Throwable $retry) {
+            $this->lastError = $retry->getMessage();
 
-                throw new \RuntimeException('Redis command failed after reconnect: ' . $retry->getMessage(), 0, $retry);
-            }
+            throw new \RuntimeException('Redis command failed after reconnect: ' . $retry->getMessage(), 0, $retry);
         }
     }
 

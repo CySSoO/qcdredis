@@ -99,16 +99,31 @@ final class QcdRedisController extends AbstractController
         return $this->render('@Modules/qcdredis/views/templates/admin/configure.html.twig', [
             'connectionForm' => $connectionForm->createView(),
             'cacheForm' => $cacheForm->createView(),
-            'overview' => ['available' => false],
+            'overview' => $this->statistics->getOverview(),
             'assetsUrl' => (defined('_MODULE_DIR_') ? _MODULE_DIR_ : '/modules/') . 'qcdredis/views/',
         ]);
     }
 
     public function testConnection(Request $request): JsonResponse
     {
+        $raw = $this->provider->getRawValues();
+        $password = (string) $request->request->get('password', '');
+
+        $config = RedisConfigFactory::fromValues([
+            RedisConfigFactory::KEY_HOST => (string) $request->request->get('host'),
+            RedisConfigFactory::KEY_PORT => (int) $request->request->get('port'),
+            RedisConfigFactory::KEY_DB => (int) $request->request->get('db'),
+            RedisConfigFactory::KEY_TIMEOUT => (float) $request->request->get('timeout'),
+            RedisConfigFactory::KEY_TLS => (bool) $request->request->get('tls'),
+            RedisConfigFactory::KEY_PASSWORD => $password !== '' ? $password : (string) $raw[RedisConfigFactory::KEY_PASSWORD],
+        ]);
+
+        $connection = $this->connectionFactory->create($config);
+        $ok = $connection->isAvailable();
+
         return $this->json([
-            'success' => false,
-            'message' => 'Redis connection tests are disabled in the Back Office.',
+            'success' => $ok,
+            'message' => $ok ? 'Connection successful.' : ('Connection failed: ' . $connection->getLastError()),
         ]);
     }
 
@@ -116,25 +131,25 @@ final class QcdRedisController extends AbstractController
     {
         return $this->json([
             'success' => true,
-            'overview' => ['available' => false],
-            'heavy_keys' => [],
-            'average_ttl' => 0.0,
+            'overview' => $this->statistics->getOverview(),
+            'heavy_keys' => $this->statistics->getHeavyKeys(20),
+            'average_ttl' => $this->statistics->getAverageTtl(),
         ]);
     }
 
     public function diagnostics(): JsonResponse
     {
-        return $this->json(['success' => true, 'checks' => []]);
+        return $this->json(['success' => true, 'checks' => $this->diagnostics->run()]);
     }
 
     public function benchmark(): JsonResponse
     {
-        return $this->json(['success' => true, 'benchmark' => ['write' => -1.0, 'read' => -1.0, 'delete' => -1.0]]);
+        return $this->json(['success' => true, 'benchmark' => $this->diagnostics->benchmark()]);
     }
 
     public function exportCsv(): Response
     {
-        $response = new Response("metric,value\navailable,0\n");
+        $response = new Response($this->statistics->toCsv());
         $response->headers->set('Content-Type', 'text/csv; charset=utf-8');
         $response->headers->set('Content-Disposition', 'attachment; filename="qcdredis-stats.csv"');
 
@@ -146,19 +161,29 @@ final class QcdRedisController extends AbstractController
         $type = (string) $request->request->get('type', 'all');
 
         return match ($type) {
-            'expired' => $this->json(['success' => true, 'expired_keys' => 0]),
-            default => $this->json(['success' => true, 'deleted' => 0]),
+            'prefix' => $this->json(['success' => true, 'deleted' => $this->purger->purgeByPrefix((string) $request->request->get('prefix'))]),
+            'tags' => $this->json(['success' => true, 'deleted' => $this->purger->purgeByTags(explode(',', (string) $request->request->get('tags')))]),
+            'expired' => $this->json(['success' => true, 'expired_keys' => $this->purger->reportExpired()]),
+            default => $this->json(['success' => true, 'deleted' => $this->purger->purgeAll()]),
         };
     }
 
     public function warmupBuild(Request $request): JsonResponse
     {
-        return $this->json(['success' => true, 'total' => 0]);
+        /** @var string[] $types */
+        $types = array_map('strval', (array) $request->request->all('types'));
+
+        return $this->json(['success' => true, 'total' => $this->warmer->buildAndStoreQueue($types)]);
     }
 
     public function warmupBatch(Request $request): JsonResponse
     {
-        return $this->json(['success' => true, 'processed' => 0, 'succeeded' => 0, 'failed' => 0, 'total' => 0]);
+        $offset = (int) $request->request->get('offset');
+        $size = max(1, min(20, (int) $request->request->get('size', 5)));
+        $result = $this->warmer->warmStoredBatch($offset, $size);
+        $result['success'] = true;
+
+        return $this->json($result);
     }
 
     /**
