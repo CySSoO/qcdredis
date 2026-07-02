@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace QcdGone\QcdRedis\Cache;
 
+use QcdGone\QcdRedis\Context\ContextResolver;
+
 /**
  * Concrete PrestaShop cache backend backed by Redis (phpredis).
  *
@@ -32,22 +34,23 @@ class QcdRedisCache extends \Cache
 
     private const KEYS_INDEX = '__qcdredis_keys__';
 
-    private RedisConfig $qcdConfig;
+    private ?RedisConfig $qcdConfig = null;
 
-    private RedisConnection $qcdConnection;
+    private ?RedisConnection $qcdConnection = null;
 
-    private string $prefix;
+    private string $prefix = '';
 
     private static bool $isConstructing = false;
 
     public function __construct()
     {
-        if (self::$isConstructing) {
-            $this->qcdConfig = RedisConfigFactory::fromValues([]);
-            $this->qcdConnection = new RedisConnection($this->qcdConfig);
-            $this->prefix = $this->qcdConfig->getKeyPrefix(0);
-            $this->keys = [];
+        $this->keys = [];
 
+        if (self::$isConstructing) {
+            return;
+        }
+
+        if (!(new ContextResolver())->isRedisAllowed()) {
             return;
         }
 
@@ -55,6 +58,11 @@ class QcdRedisCache extends \Cache
 
         try {
             $this->qcdConfig = RedisConfigFactory::fromLegacyConfiguration();
+
+            if (!$this->qcdConfig->isEnabled()) {
+                return;
+            }
+
             $this->qcdConnection = new RedisConnection($this->qcdConfig);
             $this->prefix = $this->qcdConfig->getKeyPrefix(self::resolveShopId());
 
@@ -78,7 +86,7 @@ class QcdRedisCache extends \Cache
      */
     protected function _set($key, $value, $ttl = 0)
     {
-        if (!$this->is_connected) {
+        if (!$this->is_connected || !$this->qcdConfig instanceof RedisConfig) {
             return false;
         }
 
@@ -187,6 +195,10 @@ class QcdRedisCache extends \Cache
      */
     public function deleteByPattern(string $pattern): int|false
     {
+        if (!$this->is_connected || !$this->qcdConnection instanceof RedisConnection) {
+            return false;
+        }
+
         try {
             $client = $this->qcdConnection->getClient();
             $deleted = 0;
@@ -215,6 +227,10 @@ class QcdRedisCache extends \Cache
      */
     private function run(callable $callback, mixed $default): mixed
     {
+        if (!$this->qcdConnection instanceof RedisConnection) {
+            return $default;
+        }
+
         try {
             return $this->qcdConnection->execute($callback);
         } catch (\Throwable) {
@@ -290,7 +306,9 @@ class QcdRedisCache extends \Cache
      */
     private function serializeValue(mixed $value): array
     {
-        $serializer = $this->qcdConfig->getSerializer();
+        $serializer = $this->qcdConfig instanceof RedisConfig
+            ? $this->qcdConfig->getSerializer()
+            : RedisConfig::SERIALIZER_PHP;
 
         if ($serializer === RedisConfig::SERIALIZER_IGBINARY && function_exists('igbinary_serialize')) {
             return ['I', (string) igbinary_serialize($value)];
@@ -318,7 +336,9 @@ class QcdRedisCache extends \Cache
 
     private function shouldCompress(string $data): bool
     {
-        if (!$this->qcdConfig->isCompressionEnabled() || !function_exists('gzencode')) {
+        if (!$this->qcdConfig instanceof RedisConfig
+            || !$this->qcdConfig->isCompressionEnabled()
+            || !function_exists('gzencode')) {
             return false;
         }
 

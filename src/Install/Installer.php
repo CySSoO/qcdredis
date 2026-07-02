@@ -17,6 +17,7 @@ use Module;
 use PrestaShopAutoload;
 use QcdGone\QcdRedis\Cache\RedisConfigFactory;
 use QcdGone\QcdRedis\Cache\RedisConnection;
+use QcdGone\QcdRedis\Context\ContextResolver;
 use Tab;
 use Tools;
 
@@ -58,20 +59,12 @@ final class Installer
     }
 
     /**
-     * Verify that Redis is installed and reachable. Refuse install otherwise.
+     * Verify local requirements without opening a Redis socket.
      */
     public function checkRequirements(): bool
     {
         if (!RedisConnection::isExtensionAvailable()) {
             $this->lastError = 'The PHP "redis" extension is not installed (extension_loaded("redis") failed).';
-
-            return false;
-        }
-
-        $connection = new RedisConnection(RedisConfigFactory::fromLegacyConfiguration());
-
-        if (!$connection->isAvailable()) {
-            $this->lastError = 'Redis is unreachable: ' . ($connection->getLastError() ?: 'no response') . '.';
 
             return false;
         }
@@ -145,6 +138,14 @@ final class Installer
 
             if ($default !== null && !Configuration::hasKey($key)) {
                 Configuration::updateValue($key, is_bool($default) ? (int) $default : $default);
+            }
+        }
+
+        foreach (ContextResolver::configurationKeys() as $key) {
+            $default = ContextResolver::getDefault($key);
+
+            if ($default !== null && !Configuration::hasKey($key)) {
+                Configuration::updateValue($key, (int) $default);
             }
         }
     }
@@ -234,6 +235,10 @@ final class Installer
     private function deleteConfiguration(): void
     {
         foreach (RedisConfigFactory::allKeys() as $key) {
+            Configuration::deleteByName($key);
+        }
+
+        foreach (ContextResolver::configurationKeys() as $key) {
             Configuration::deleteByName($key);
         }
     }

@@ -126,6 +126,17 @@ final class RedisConfigFactory
     }
 
     /**
+     * Read a single PrestaShop configuration value without using Configuration.
+     *
+     * This is shared by early-boot services that must avoid Configuration/Db
+     * recursion before the regular cache layer is ready.
+     */
+    public static function readLegacyValue(string $key, mixed $default = null): mixed
+    {
+        return self::readLegacy($key, $default);
+    }
+
+    /**
      * All persisted configuration keys (used on uninstall).
      *
      * @return string[]
@@ -146,11 +157,11 @@ final class RedisConfigFactory
     /**
      * Read a single value from the configuration table, defensively.
      */
-    private static function readLegacy(string $key): mixed
+    private static function readLegacy(string $key, mixed $default = null): mixed
     {
         try {
             if (!self::hasLegacyDatabaseConstants()) {
-                return self::DEFAULTS[$key] ?? null;
+                return self::DEFAULTS[$key] ?? $default;
             }
 
             $value = self::readLegacyWithMysqli($key);
@@ -166,7 +177,7 @@ final class RedisConfigFactory
             // Database not ready during early boot: fall back to defaults.
         }
 
-        return self::DEFAULTS[$key] ?? null;
+        return self::DEFAULTS[$key] ?? $default;
     }
 
     private static function readLegacyWithMysqli(string $key): mixed

@@ -18,7 +18,7 @@
         {% if overview.available %}
             <span class="qcd-badge qcd-badge-ok">Redis online &middot; v{{ overview.version }}</span>
         {% else %}
-            <span class="qcd-badge qcd-badge-error">Redis offline</span>
+            <span class="qcd-badge qcd-badge-error">Redis disabled in Back Office</span>
         {% endif %}
     </div>
 
@@ -50,7 +50,7 @@
                         <div class="qcd-card"><span class="qcd-metric" data-metric="{{ key }}">{{ overview[key] }}</span><span class="qcd-label">{{ label }}</span></div>
                     {% endfor %}
                 {% else %}
-                    <p class="qcd-alert qcd-alert-error">Redis is not reachable. Check the Connection tab.</p>
+                    <p class="qcd-alert qcd-alert-error">Redis is not used in the Back Office.</p>
                 {% endif %}
             </div>
             <button type="button" class="btn btn-outline-secondary qcd-action" data-qcd-refresh="dashboard">Refresh</button>
@@ -77,6 +77,11 @@
         <section class="qcd-panel" data-qcd-panel="cache">
             {{ form_start(cacheForm) }}
                 {{ form_row(cacheForm.enabled) }}
+                {{ form_row(cacheForm.front) }}
+                {{ form_row(cacheForm.front_ajax) }}
+                {{ form_row(cacheForm.back) }}
+                {{ form_row(cacheForm.cli) }}
+                {{ form_row(cacheForm.cron) }}
                 {{ form_row(cacheForm.ttl) }}
                 {{ form_row(cacheForm.prefix) }}
                 {{ form_row(cacheForm.compression) }}

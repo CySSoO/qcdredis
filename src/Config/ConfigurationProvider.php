@@ -15,6 +15,7 @@ use PrestaShop\PrestaShop\Adapter\Configuration;
 use PrestaShop\PrestaShop\Adapter\LegacyContext;
 use QcdGone\QcdRedis\Cache\RedisConfig;
 use QcdGone\QcdRedis\Cache\RedisConfigFactory;
+use QcdGone\QcdRedis\Context\ContextResolver;
 
 /**
  * Reads the module configuration through PrestaShop's Configuration service and
@@ -52,6 +53,10 @@ final class ConfigurationProvider
 
         foreach (RedisConfigFactory::allKeys() as $key) {
             $values[$key] = $this->configuration->get($key, RedisConfigFactory::getDefault($key));
+        }
+
+        foreach (ContextResolver::configurationKeys() as $key) {
+            $values[$key] = $this->configuration->get($key, ContextResolver::getDefault($key));
         }
 
         return $values;

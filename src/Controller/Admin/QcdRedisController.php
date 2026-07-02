@@ -14,13 +14,9 @@ namespace QcdGone\QcdRedis\Controller\Admin;
 use QcdGone\QcdRedis\Cache\RedisConfigFactory;
 use QcdGone\QcdRedis\Config\ConfigurationProvider;
 use QcdGone\QcdRedis\Config\ConfigurationUpdater;
+use QcdGone\QcdRedis\Context\ContextResolver;
 use QcdGone\QcdRedis\Form\CacheSettingsType;
 use QcdGone\QcdRedis\Form\ConnectionType;
-use QcdGone\QcdRedis\Service\CachePurger;
-use QcdGone\QcdRedis\Service\CacheWarmer;
-use QcdGone\QcdRedis\Service\DiagnosticsRunner;
-use QcdGone\QcdRedis\Service\RedisConnectionFactory;
-use QcdGone\QcdRedis\Service\StatisticsProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,32 +38,12 @@ final class QcdRedisController extends AbstractController
 
     private ConfigurationUpdater $updater;
 
-    private RedisConnectionFactory $connectionFactory;
-
-    private StatisticsProvider $statistics;
-
-    private DiagnosticsRunner $diagnostics;
-
-    private CachePurger $purger;
-
-    private CacheWarmer $warmer;
-
     public function __construct(
         ConfigurationProvider $provider,
-        ConfigurationUpdater $updater,
-        RedisConnectionFactory $connectionFactory,
-        StatisticsProvider $statistics,
-        DiagnosticsRunner $diagnostics,
-        CachePurger $purger,
-        CacheWarmer $warmer
+        ConfigurationUpdater $updater
     ) {
         $this->provider = $provider;
         $this->updater = $updater;
-        $this->connectionFactory = $connectionFactory;
-        $this->statistics = $statistics;
-        $this->diagnostics = $diagnostics;
-        $this->purger = $purger;
-        $this->warmer = $warmer;
     }
 
     /**
@@ -98,31 +74,16 @@ final class QcdRedisController extends AbstractController
         return $this->render('@Modules/qcdredis/views/templates/admin/configure.html.twig', [
             'connectionForm' => $connectionForm->createView(),
             'cacheForm' => $cacheForm->createView(),
-            'overview' => $this->statistics->getOverview(),
+            'overview' => ['available' => false],
             'assetsUrl' => (defined('_MODULE_DIR_') ? _MODULE_DIR_ : '/modules/') . 'qcdredis/views/',
         ]);
     }
 
     public function testConnection(Request $request): JsonResponse
     {
-        $raw = $this->provider->getRawValues();
-        $password = (string) $request->request->get('password', '');
-
-        $config = RedisConfigFactory::fromValues([
-            RedisConfigFactory::KEY_HOST => (string) $request->request->get('host'),
-            RedisConfigFactory::KEY_PORT => (int) $request->request->get('port'),
-            RedisConfigFactory::KEY_DB => (int) $request->request->get('db'),
-            RedisConfigFactory::KEY_TIMEOUT => (float) $request->request->get('timeout'),
-            RedisConfigFactory::KEY_TLS => (bool) $request->request->get('tls'),
-            RedisConfigFactory::KEY_PASSWORD => $password !== '' ? $password : (string) $raw[RedisConfigFactory::KEY_PASSWORD],
-        ]);
-
-        $connection = $this->connectionFactory->create($config);
-        $ok = $connection->isAvailable();
-
         return $this->json([
-            'success' => $ok,
-            'message' => $ok ? 'Connection successful.' : ('Connection failed: ' . $connection->getLastError()),
+            'success' => false,
+            'message' => 'Redis connection tests are disabled in the Back Office.',
         ]);
     }
 
@@ -130,25 +91,25 @@ final class QcdRedisController extends AbstractController
     {
         return $this->json([
             'success' => true,
-            'overview' => $this->statistics->getOverview(),
-            'heavy_keys' => $this->statistics->getHeavyKeys(20),
-            'average_ttl' => $this->statistics->getAverageTtl(),
+            'overview' => ['available' => false],
+            'heavy_keys' => [],
+            'average_ttl' => 0.0,
         ]);
     }
 
     public function diagnostics(): JsonResponse
     {
-        return $this->json(['success' => true, 'checks' => $this->diagnostics->run()]);
+        return $this->json(['success' => true, 'checks' => []]);
     }
 
     public function benchmark(): JsonResponse
     {
-        return $this->json(['success' => true, 'benchmark' => $this->diagnostics->benchmark()]);
+        return $this->json(['success' => true, 'benchmark' => ['write' => -1.0, 'read' => -1.0, 'delete' => -1.0]]);
     }
 
     public function exportCsv(): Response
     {
-        $response = new Response($this->statistics->toCsv());
+        $response = new Response("metric,value\navailable,0\n");
         $response->headers->set('Content-Type', 'text/csv; charset=utf-8');
         $response->headers->set('Content-Disposition', 'attachment; filename="qcdredis-stats.csv"');
 
@@ -160,29 +121,19 @@ final class QcdRedisController extends AbstractController
         $type = (string) $request->request->get('type', 'all');
 
         return match ($type) {
-            'prefix' => $this->json(['success' => true, 'deleted' => $this->purger->purgeByPrefix((string) $request->request->get('prefix'))]),
-            'tags' => $this->json(['success' => true, 'deleted' => $this->purger->purgeByTags(explode(',', (string) $request->request->get('tags')))]),
-            'expired' => $this->json(['success' => true, 'expired_keys' => $this->purger->reportExpired()]),
-            default => $this->json(['success' => true, 'deleted' => $this->purger->purgeAll()]),
+            'expired' => $this->json(['success' => true, 'expired_keys' => 0]),
+            default => $this->json(['success' => true, 'deleted' => 0]),
         };
     }
 
     public function warmupBuild(Request $request): JsonResponse
     {
-        /** @var string[] $types */
-        $types = array_map('strval', (array) $request->request->all('types'));
-
-        return $this->json(['success' => true, 'total' => $this->warmer->buildAndStoreQueue($types)]);
+        return $this->json(['success' => true, 'total' => 0]);
     }
 
     public function warmupBatch(Request $request): JsonResponse
     {
-        $offset = (int) $request->request->get('offset');
-        $size = max(1, min(20, (int) $request->request->get('size', 5)));
-        $result = $this->warmer->warmStoredBatch($offset, $size);
-        $result['success'] = true;
-
-        return $this->json($result);
+        return $this->json(['success' => true, 'processed' => 0, 'succeeded' => 0, 'failed' => 0, 'total' => 0]);
     }
 
     /**
@@ -211,6 +162,11 @@ final class QcdRedisController extends AbstractController
     {
         return [
             'enabled' => (bool) $raw[RedisConfigFactory::KEY_ENABLED],
+            'front' => (bool) $raw[ContextResolver::KEY_FRONT],
+            'front_ajax' => (bool) $raw[ContextResolver::KEY_FRONT_AJAX],
+            'back' => (bool) $raw[ContextResolver::KEY_BACK],
+            'cli' => (bool) $raw[ContextResolver::KEY_CLI],
+            'cron' => (bool) $raw[ContextResolver::KEY_CRON],
             'ttl' => (int) $raw[RedisConfigFactory::KEY_TTL],
             'prefix' => $raw[RedisConfigFactory::KEY_PREFIX],
             'compression' => (bool) $raw[RedisConfigFactory::KEY_COMPRESSION],

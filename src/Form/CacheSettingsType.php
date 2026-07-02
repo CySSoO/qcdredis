@@ -36,6 +36,26 @@ final class CacheSettingsType extends AbstractType
                 'label' => 'Activation',
                 'required' => false,
             ])
+            ->add('front', CheckboxType::class, [
+                'label' => 'Use Redis on the Front Office',
+                'required' => false,
+            ])
+            ->add('front_ajax', CheckboxType::class, [
+                'label' => 'Use Redis on Front Office AJAX',
+                'required' => false,
+            ])
+            ->add('back', CheckboxType::class, [
+                'label' => 'Use Redis on the Back Office',
+                'required' => false,
+            ])
+            ->add('cli', CheckboxType::class, [
+                'label' => 'Use Redis in CLI',
+                'required' => false,
+            ])
+            ->add('cron', CheckboxType::class, [
+                'label' => 'Use Redis for Cron',
+                'required' => false,
+            ])
             ->add('ttl', IntegerType::class, [
                 'label' => 'Default TTL (s, 0 = none)',
                 'constraints' => [new Assert\GreaterThanOrEqual(0)],
