@@ -159,16 +159,9 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path></svg>
                         Où activer le cache
                     </div>
-                    <p class="qcd-hint">Recommandé : laisser <strong>Front</strong> et <strong>Front (AJAX)</strong> activés. Le reste peut rester désactivé.</p>
+                    <p class="qcd-hint">Recommandé : laisser <strong>Front</strong> et <strong>Front (AJAX)</strong> activés. Redis est dédié au front-office ; l'administration, la CLI et le cron ne sont jamais mis en cache.</p>
                     {{ form_row(cacheForm.front) }}
                     {{ form_row(cacheForm.front_ajax) }}
-                    {{ form_row(cacheForm.back) }}
-                    <div class="qcd-callout qcd-callout-warn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        <span>Laissez <strong>Back-office désactivé</strong> : Redis est dédié au front. Activer le cache en administration n'est pas recommandé.</span>
-                    </div>
-                    {{ form_row(cacheForm.cli) }}
-                    {{ form_row(cacheForm.cron) }}
                 </div>
 
                 <div class="qcd-section">

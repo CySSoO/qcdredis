@@ -33,35 +33,23 @@ final class CacheSettingsType extends AbstractType
 
         $builder
             ->add('enabled', CheckboxType::class, [
-                'label' => 'Activation',
+                'label' => 'Activer QCD Redis',
                 'required' => false,
             ])
             ->add('front', CheckboxType::class, [
-                'label' => 'Use Redis on the Front Office',
+                'label' => 'Utiliser Redis sur le front-office',
                 'required' => false,
             ])
             ->add('front_ajax', CheckboxType::class, [
-                'label' => 'Use Redis on Front Office AJAX',
-                'required' => false,
-            ])
-            ->add('back', CheckboxType::class, [
-                'label' => 'Use Redis on the Back Office',
-                'required' => false,
-            ])
-            ->add('cli', CheckboxType::class, [
-                'label' => 'Use Redis in CLI',
-                'required' => false,
-            ])
-            ->add('cron', CheckboxType::class, [
-                'label' => 'Use Redis for Cron',
+                'label' => 'Utiliser Redis pour les requêtes AJAX du front',
                 'required' => false,
             ])
             ->add('ttl', IntegerType::class, [
-                'label' => 'Default TTL (s, 0 = none)',
+                'label' => 'Durée de vie par défaut (s, 0 = illimité)',
                 'constraints' => [new Assert\GreaterThanOrEqual(0)],
             ])
             ->add('prefix', TextType::class, [
-                'label' => 'Prefix',
+                'label' => 'Préfixe des clés',
                 'constraints' => [new Assert\NotBlank(), new Assert\Length(['max' => 64])],
             ])
             ->add('compression', CheckboxType::class, [
@@ -69,15 +57,15 @@ final class CacheSettingsType extends AbstractType
                 'required' => false,
             ])
             ->add('compression_auto', CheckboxType::class, [
-                'label' => 'Automatic compression',
+                'label' => 'Compression automatique',
                 'required' => false,
             ])
             ->add('compression_threshold', IntegerType::class, [
-                'label' => 'Compression threshold (bytes)',
+                'label' => 'Seuil de compression (octets)',
                 'constraints' => [new Assert\GreaterThanOrEqual(0)],
             ])
             ->add('serializer', ChoiceType::class, [
-                'label' => 'Serializer',
+                'label' => 'Sérialiseur',
                 'choices' => [
                     'PHP' => RedisConfig::SERIALIZER_PHP,
                     'igbinary' . ($igbinary ? '' : ' (unavailable)') => RedisConfig::SERIALIZER_IGBINARY,
