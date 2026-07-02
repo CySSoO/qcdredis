@@ -71,12 +71,19 @@ final class ConfigurationProvider
     }
 
     /**
-     * Current shop id (0 in single-shop or "all shops" context).
+     * Current shop id, resolved through the exact same call as the cache engine
+     * (QcdRedisCache::resolveShopId) so the ':sN:' key suffix is identical on
+     * both sides. Without this, purge/stats/warmup would target a different
+     * namespace than the one the front engine actually writes to.
      */
     public function getShopId(): int
     {
+        if (class_exists('Shop') && method_exists('Shop', 'getContextShopID')) {
+            return max(0, (int) \Shop::getContextShopID());
+        }
+
         $shop = $this->legacyContext->getContext()->shop ?? null;
 
-        return $shop !== null ? (int) $shop->id : 0;
+        return $shop !== null ? max(0, (int) $shop->id) : 0;
     }
 }
