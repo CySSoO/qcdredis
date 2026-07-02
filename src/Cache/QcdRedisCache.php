@@ -40,6 +40,12 @@ class QcdRedisCache extends \Cache
 
     private string $prefix = '';
 
+    /** @var bool Whether the in-memory keys index changed and must be persisted. */
+    private bool $keysDirty = false;
+
+    /** @var bool Guards single registration of the shutdown flush. */
+    private bool $shutdownRegistered = false;
+
     private static bool $isConstructing = false;
 
     public function __construct()
@@ -158,6 +164,20 @@ class QcdRedisCache extends \Cache
     }
 
     /**
+     * Mark the keys index dirty and defer its persistence to request shutdown.
+     *
+     * PrestaShop's native Cache::set()/delete() call _writeKeys() after *every*
+     * mutation. Persisting the whole (unbounded, growing) index to Redis on each
+     * call turns a page doing N cache writes into N full serialize()+SET cycles
+     * of an ever-larger payload - a quadratic cost that dominates the request.
+     *
+     * The in-memory {@see $this->keys} array is authoritative for the current
+     * request (native get()/exists()/delete() only consult it), so the on-Redis
+     * index only needs to reflect the final state once, at end of request. A
+     * missing/stale index entry can only cause a benign cache miss on a later
+     * request (values themselves are written immediately by _set()), never data
+     * corruption. This preserves behaviour while collapsing N writes into 1.
+     *
      * @return bool
      */
     protected function _writeKeys()
@@ -166,6 +186,41 @@ class QcdRedisCache extends \Cache
             return false;
         }
 
+        $this->keysDirty = true;
+        $this->registerShutdownFlush();
+
+        return true;
+    }
+
+    /**
+     * Register (once) the shutdown callback that persists the keys index.
+     */
+    private function registerShutdownFlush(): void
+    {
+        if ($this->shutdownRegistered) {
+            return;
+        }
+
+        $this->shutdownRegistered = true;
+
+        // A closure defined here is bound to $this and this class scope, so it
+        // can call the private persistKeysIndex() without widening the API.
+        register_shutdown_function(function (): void {
+            $this->persistKeysIndex();
+        });
+    }
+
+    /**
+     * Persist the in-memory keys index to Redis if it changed. Safe to call
+     * multiple times; only writes when dirty.
+     */
+    private function persistKeysIndex(): bool
+    {
+        if (!$this->keysDirty || !$this->is_connected) {
+            return false;
+        }
+
+        $this->keysDirty = false;
         $payload = $this->encode($this->keys);
         $indexKey = $this->prefix . self::KEYS_INDEX;
 
@@ -185,6 +240,8 @@ class QcdRedisCache extends \Cache
 
         $deleted = $this->deleteByPattern($this->prefix . '*');
         $this->keys = [];
+        // The pattern delete above also removed the index key; nothing pending.
+        $this->keysDirty = false;
 
         return $deleted !== false;
     }

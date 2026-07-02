@@ -17,6 +17,11 @@ use QcdGone\QcdRedis\Config\ConfigurationUpdater;
 use QcdGone\QcdRedis\Context\ContextResolver;
 use QcdGone\QcdRedis\Form\CacheSettingsType;
 use QcdGone\QcdRedis\Form\ConnectionType;
+use QcdGone\QcdRedis\Service\CachePurger;
+use QcdGone\QcdRedis\Service\CacheWarmer;
+use QcdGone\QcdRedis\Service\DiagnosticsRunner;
+use QcdGone\QcdRedis\Service\RedisConnectionFactory;
+use QcdGone\QcdRedis\Service\StatisticsProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,12 +43,32 @@ final class QcdRedisController extends AbstractController
 
     private ConfigurationUpdater $updater;
 
+    private RedisConnectionFactory $connectionFactory;
+
+    private StatisticsProvider $statistics;
+
+    private DiagnosticsRunner $diagnostics;
+
+    private CachePurger $purger;
+
+    private CacheWarmer $warmer;
+
     public function __construct(
         ConfigurationProvider $provider,
-        ConfigurationUpdater $updater
+        ConfigurationUpdater $updater,
+        RedisConnectionFactory $connectionFactory,
+        StatisticsProvider $statistics,
+        DiagnosticsRunner $diagnostics,
+        CachePurger $purger,
+        CacheWarmer $warmer
     ) {
         $this->provider = $provider;
         $this->updater = $updater;
+        $this->connectionFactory = $connectionFactory;
+        $this->statistics = $statistics;
+        $this->diagnostics = $diagnostics;
+        $this->purger = $purger;
+        $this->warmer = $warmer;
     }
 
     /**

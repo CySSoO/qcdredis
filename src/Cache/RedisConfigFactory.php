@@ -112,12 +112,11 @@ final class RedisConfigFactory
         }
 
         self::$legacyReadInProgress = true;
-        $values = [];
 
         try {
-            foreach (array_keys(self::DEFAULTS) as $key) {
-                $values[$key] = self::readLegacy($key);
-            }
+            // Read every configuration key in a single round-trip instead of one
+            // SELECT per key. fromValues() fills any missing key from DEFAULTS.
+            $values = self::readLegacyMany(array_keys(self::DEFAULTS));
         } finally {
             self::$legacyReadInProgress = false;
         }
@@ -178,6 +177,129 @@ final class RedisConfigFactory
         }
 
         return self::DEFAULTS[$key] ?? $default;
+    }
+
+    /**
+     * Read several configuration values in a single query. Only keys present in
+     * the table are returned; callers fall back to defaults for the rest.
+     *
+     * @param string[] $keys
+     *
+     * @return array<string, mixed>
+     */
+    private static function readLegacyMany(array $keys): array
+    {
+        if ($keys === []) {
+            return [];
+        }
+
+        try {
+            if (!self::hasLegacyDatabaseConstants()) {
+                return [];
+            }
+
+            $values = self::readLegacyManyWithMysqli($keys);
+
+            if ($values === null) {
+                $values = self::readLegacyManyWithPdo($keys);
+            }
+
+            return is_array($values) ? $values : [];
+        } catch (\Throwable) {
+            // Database not ready during early boot: fall back to defaults.
+            return [];
+        }
+    }
+
+    /**
+     * @param string[] $keys
+     *
+     * @return array<string, mixed>|null Null when mysqli is unusable (try PDO).
+     */
+    private static function readLegacyManyWithMysqli(array $keys): ?array
+    {
+        $connection = self::getLegacyMysqli();
+
+        if (!$connection instanceof \mysqli) {
+            return null;
+        }
+
+        $prefix = self::getLegacyTablePrefix();
+
+        if ($prefix === null) {
+            return null;
+        }
+
+        $escaped = array_map(
+            static fn (string $key): string => "'" . $connection->real_escape_string($key) . "'",
+            $keys
+        );
+
+        $sql = sprintf(
+            'SELECT `name`, `value` FROM `%sconfiguration` WHERE `name` IN (%s)'
+            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL',
+            $prefix,
+            implode(',', $escaped)
+        );
+        $result = @$connection->query($sql);
+
+        if (!$result instanceof \mysqli_result) {
+            return null;
+        }
+
+        $values = [];
+
+        while (is_array($row = $result->fetch_assoc())) {
+            if (array_key_exists('name', $row) && array_key_exists('value', $row)) {
+                $values[(string) $row['name']] = $row['value'];
+            }
+        }
+
+        $result->free();
+
+        return $values;
+    }
+
+    /**
+     * @param string[] $keys
+     *
+     * @return array<string, mixed>|null Null when PDO is unusable.
+     */
+    private static function readLegacyManyWithPdo(array $keys): ?array
+    {
+        $connection = self::getLegacyPdo();
+        $prefix = self::getLegacyTablePrefix();
+
+        if (!$connection instanceof \PDO || $prefix === null) {
+            return null;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $sql = sprintf(
+            'SELECT `name`, `value` FROM `%sconfiguration` WHERE `name` IN (%s)'
+            . ' AND `id_shop` IS NULL AND `id_shop_group` IS NULL',
+            $prefix,
+            $placeholders
+        );
+        $statement = $connection->prepare($sql);
+
+        if (!$statement) {
+            return null;
+        }
+
+        if (!$statement->execute(array_values($keys))) {
+            return null;
+        }
+
+        $values = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            if (is_array($row) && array_key_exists('name', $row) && array_key_exists('value', $row)) {
+                $values[(string) $row['name']] = $row['value'];
+            }
+        }
+
+        return $values;
     }
 
     private static function readLegacyWithMysqli(string $key): mixed
