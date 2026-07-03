@@ -31,7 +31,10 @@ final class CachePurger
 
     public function purgeAll(): int
     {
-        return $this->purgePattern($this->provider->getKeyPrefix() . '*');
+        // Clear the whole module namespace (every shop segment), so orphaned
+        // keys from other shops or from an earlier misaligned suffix are removed
+        // too - a manual redis-cli FLUSHDB should never be needed.
+        return $this->purgePattern($this->provider->getModulePrefix() . '*');
     }
 
     public function purgeByPrefix(string $prefix): int

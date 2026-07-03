@@ -71,6 +71,17 @@ final class ConfigurationProvider
     }
 
     /**
+     * Module-wide key prefix covering every shop segment (":s0:", ":s1:", …).
+     * Used by the full purge so it clears the whole module namespace - including
+     * keys left by other shops or by an earlier (misaligned) suffix - instead of
+     * only the current shop, so a manual redis-cli FLUSHDB is never required.
+     */
+    public function getModulePrefix(): string
+    {
+        return rtrim($this->getConfig()->getPrefix(), ':') . ':s';
+    }
+
+    /**
      * Current shop id, resolved through the exact same call as the cache engine
      * (QcdRedisCache::resolveShopId) so the ':sN:' key suffix is identical on
      * both sides. Without this, purge/stats/warmup would target a different
