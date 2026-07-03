@@ -31,7 +31,7 @@ final class RedisConfig
         private readonly float $timeout = 2.0,
         private readonly bool $tls = false,
         private readonly bool $enabled = true,
-        private readonly int $defaultTtl = 0,
+        private readonly int $defaultTtl = 86400,
         private readonly string $prefix = 'ps_',
         private readonly bool $compression = false,
         private readonly bool $compressionAuto = true,

@@ -37,7 +37,7 @@ class Qcdredis extends Module
     {
         $this->name = 'qcdredis';
         $this->tab = 'administration';
-        $this->version = '1.0.1';
+        $this->version = '1.0.2';
         $this->author = '410 Gone';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '8.0.0', 'max' => '9.99.99'];

@@ -55,7 +55,7 @@ final class RedisConfigFactory
         self::KEY_TIMEOUT => 2.0,
         self::KEY_TLS => false,
         self::KEY_ENABLED => true,
-        self::KEY_TTL => 0,
+        self::KEY_TTL => 86400,
         self::KEY_PREFIX => 'ps_',
         self::KEY_COMPRESSION => false,
         self::KEY_COMPRESSION_AUTO => true,
